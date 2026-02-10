@@ -13,6 +13,9 @@ export interface PlayerState {
   maxMagicCd: number;
   recentAttacks: number;
   isAttacking: boolean;
+  isDodging: boolean;
+  isDefending: boolean;
+  isHealing: boolean;
   gold: number;
   totalGoldSpent: number;
   damageMultiplier: number;
@@ -37,6 +40,9 @@ export interface FuzzyMetrics {
   energyPct: number;
   aggressionOutput: number;
   stateDescription: string;
+  // New metrics
+  playerStance: { normal: number; defensive: number; dodging: number; healing: number };
+  
   fuzzyDist: { close: number; medium: number; far: number };
   fuzzyHealth: { critical: number; wounded: number; healthy: number };
   fuzzyPlayerHealth: { critical: number; wounded: number; healthy: number };

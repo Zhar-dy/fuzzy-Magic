@@ -17,10 +17,9 @@ const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({ metrics }) => {
         <div className="flex items-center gap-2 mt-1">
             <span className="text-[10px] text-gray-500 font-bold uppercase">Tactical State:</span>
             <span className={`text-[10px] font-black px-2 py-0.5 rounded shadow-sm transition-all duration-500 ${
-                metrics.stateDescription === 'PREDATORY' ? 'bg-red-600 text-white animate-pulse' :
-                metrics.stateDescription === 'SAFE MOVE' ? 'bg-blue-600 text-white' :
+                metrics.stateDescription === 'INTERRUPTING' ? 'bg-orange-600 text-white animate-pulse' :
+                metrics.stateDescription === 'CONSERVING' ? 'bg-cyan-800 text-white' :
                 metrics.stateDescription === 'FINAL STAND' ? 'bg-indigo-600 text-white animate-pulse' :
-                metrics.stateDescription === 'EXHAUSTED' ? 'bg-blue-900 text-gray-300' :
                 metrics.stateDescription === 'BERSERK' ? 'bg-purple-600 text-white' :
                 'bg-green-600 text-white'
             }`}>
@@ -35,16 +34,27 @@ const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({ metrics }) => {
         { name: "Far", color: "#10b981", type: "trapezoid", params: [10, 16, 100, 100] }
       ]} />
 
-      <FuzzyGraph title="Input: Energy %" currentValue={metrics.energyPct} min={0} max={100} sets={[
-        { name: "Empty", color: "#ef4444", type: "trapezoid", params: [-1, 0, 10, 25] },
-        { name: "Low", color: "#f59e0b", type: "triangle", params: [15, 35, 55] },
-        { name: "Full", color: "#10b981", type: "trapezoid", params: [45, 75, 100, 101] }
-      ]} />
-
       <FuzzyGraph title="Input: Player HP %" currentValue={metrics.playerHealthPct} min={0} max={100} sets={[
         { name: "Critical", color: "#ef4444", type: "trapezoid", params: [-1, 0, 30, 40] },
         { name: "Healthy", color: "#10b981", type: "trapezoid", params: [60, 80, 100, 101] }
       ]} />
+
+      <div className="bg-gray-900/80 p-3 rounded-lg border border-gray-700">
+        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 text-center">Input: Player Stance</h3>
+        <div className="grid grid-cols-4 gap-1">
+            {Object.entries(metrics.playerStance).map(([key, val]) => (
+                <div key={key} className="flex flex-col items-center">
+                    <div className="h-10 w-2 bg-gray-800 rounded-full relative overflow-hidden">
+                        <div 
+                            className={`absolute bottom-0 left-0 right-0 transition-all duration-300 ${val > 0.5 ? 'bg-cyan-400' : 'bg-gray-600'}`} 
+                            style={{ height: `${val * 100}%` }}
+                        />
+                    </div>
+                    <span className="text-[7px] text-gray-500 uppercase mt-1 font-mono">{key}</span>
+                </div>
+            ))}
+        </div>
+      </div>
 
       <FuzzyGraph title="Output: Aggression" currentValue={metrics.aggressionOutput} min={0} max={100} sets={[
         { name: "Passive", color: "#3b82f6", type: "trapezoid", params: [-1, 0, 25, 45] },

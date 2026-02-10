@@ -1,3 +1,4 @@
+
 import { FuzzyMetrics } from '../types';
 
 export function triangle(x: number, a: number, b: number, c: number): number {
@@ -16,6 +17,10 @@ export function trapezoid(x: number, a: number, b: number, c: number, d: number)
 
 export const FUZZY_RULES = [
   "IF Energy IS Empty THEN Aggression IS Passive (Recharge)",
+  "IF Player IS Healing AND Distance IS Close THEN Aggression IS Hostile (Punish Heal)",
+  "IF Player IS Dodging AND Distance IS Far THEN Aggression IS Passive (Conserve Energy)",
+  "IF Player IS Defensive AND Health IS Healthy THEN Aggression IS Neutral (Pressure Shield)",
+  "IF Player IS Defensive AND Health IS Critical THEN Aggression IS Passive (Regroup)",
   "IF Energy IS Full AND Distance IS Far THEN Aggression IS Hostile (Ranged Sniper)",
   "IF Energy IS Low AND Distance IS Close THEN Aggression IS Hostile (Melee Strike)",
   "IF PlayerHP IS Healthy AND Distance IS Medium THEN Aggression IS Hostile (Pressure)",
@@ -26,9 +31,7 @@ export const FUZZY_RULES = [
   "IF PlayerMagic IS Armed AND Distance IS Close THEN Aggression IS Passive (Fear)",
   "IF Health IS Healthy AND Distance IS Close THEN Aggression IS Hostile (Bully)",
   "IF PlayerHP IS Wounded AND Health IS Healthy THEN Aggression IS Hostile (Predatory)",
-  "IF Hazard IS InDanger AND Health IS Healthy THEN Aggression IS Passive (Safe Reposition)",
-  "IF Distance IS Far AND PlayerMagic IS Spent THEN Aggression IS Hostile (Stalking)",
-  "IF Distance IS Medium AND PlayerMagic IS Armed THEN Aggression IS Passive (Cautious Approach)"
+  "IF Hazard IS InDanger AND Health IS Healthy THEN Aggression IS Passive (Safe Reposition)"
 ];
 
 export class FuzzyAI {
@@ -38,11 +41,22 @@ export class FuzzyAI {
   public energy = { empty: 0, low: 0, full: 0 };
   public playerMagic = { armed: 0, recharging: 0, spent: 0 };
   public hazardProximity = { inDanger: 0, safe: 0 };
+  public playerStance = { normal: 0, defensive: 0, dodging: 0, healing: 0 };
   public aggressionFuzzy = { passive: 0, neutral: 0, aggressive: 0 };
   public aggression = 0;
   public state = "IDLE";
 
-  evaluate(dist: number, hpPercent: number, playerHpPercent: number, magicCd: number, hazardDist: number, energyPct: number): FuzzyMetrics {
+  evaluate(
+    dist: number, 
+    hpPercent: number, 
+    playerHpPercent: number, 
+    magicCd: number, 
+    hazardDist: number, 
+    energyPct: number,
+    isDodging: boolean,
+    isDefending: boolean,
+    isHealing: boolean
+  ): FuzzyMetrics {
     // 1. FUZZIFICATION
     this.distance.close = trapezoid(dist, -1, 0, 4, 8); 
     this.distance.medium = triangle(dist, 4, 10, 16);
@@ -67,6 +81,12 @@ export class FuzzyAI {
     this.hazardProximity.inDanger = trapezoid(hazardDist, -1, 0, 3, 5);
     this.hazardProximity.safe = trapezoid(hazardDist, 4, 6, 100, 100);
 
+    // Boolean to Linguistic truth mapping
+    this.playerStance.dodging = isDodging ? 1 : 0;
+    this.playerStance.defensive = isDefending ? 1 : 0;
+    this.playerStance.healing = isHealing ? 1 : 0;
+    this.playerStance.normal = (!isDodging && !isDefending && !isHealing) ? 1 : 0;
+
     // 2. INFERENCE
     const rRecharge = this.energy.empty;
     const rSniper = Math.min(this.energy.full, this.distance.far);
@@ -79,15 +99,16 @@ export class FuzzyAI {
     const rFear = Math.min(this.playerMagic.armed, this.distance.close);
     const rBully = Math.min(this.health.healthy, this.distance.close);
     
-    // NEW RULES
-    const rPredatory = Math.min(this.playerHealth.wounded, this.health.healthy);
-    const rSafeReposition = Math.min(this.hazardProximity.inDanger, this.health.healthy);
+    // ACTION REACTION RULES
+    const rPunishHeal = Math.min(this.playerStance.healing, this.distance.close);
+    const rWaitDodge = Math.min(this.playerStance.dodging, this.distance.far);
+    const rTacticalPressure = Math.min(this.playerStance.defensive, this.health.healthy);
+    const rFearShield = Math.min(this.playerStance.defensive, this.health.critical);
     const rStalking = Math.min(this.distance.far, this.playerMagic.spent);
-    const rCautious = Math.min(this.distance.medium, this.playerMagic.armed);
 
-    const highAggro = Math.max(rSniper, rMelee, rPressure, rDesperation, rBerserk, rPunish, rBully, rPredatory, rStalking);
-    const lowAggro = Math.max(rRecharge, rCornered, rFear, rSafeReposition, rCautious);
-    const medAggro = 0.3;
+    const highAggro = Math.max(rSniper, rMelee, rPressure, rDesperation, rBerserk, rPunish, rBully, rPunishHeal, rStalking);
+    const lowAggro = Math.max(rRecharge, rCornered, rFear, rWaitDodge, rFearShield);
+    const medAggro = Math.max(0.3, rTacticalPressure * 0.7);
 
     // 3. DEFUZZIFICATION
     const numerator = (lowAggro * 15) + (medAggro * 50) + (highAggro * 95);
@@ -100,21 +121,22 @@ export class FuzzyAI {
     this.aggressionFuzzy.neutral = triangle(this.aggression, 30, 50, 70);
     this.aggressionFuzzy.aggressive = trapezoid(this.aggression, 55, 75, 100, 101);
 
-    if (rDesperation > 0.8) this.state = "FINAL STAND";
+    // State mapping with more nuances
+    if (rPunishHeal > 0.8) this.state = "INTERRUPTING";
+    else if (rWaitDodge > 0.8) this.state = "CONSERVING";
+    else if (rDesperation > 0.8) this.state = "FINAL STAND";
     else if (rCornered > 0.8) this.state = "CORNERED";
-    else if (rSafeReposition > 0.8) this.state = "SAFE MOVE";
-    else if (rPredatory > 0.8) this.state = "PREDATORY";
-    else if (rRecharge > 0.7) this.state = "EXHAUSTED";
     else if (rBerserk > 0.8) this.state = "BERSERK";
     else if (rSniper > 0.6) this.state = "SNIPING";
-    else if (this.aggression > 75) this.state = "RUTHLESS";
-    else if (this.aggression > 50) this.state = "AGGRESSIVE";
-    else if (this.aggression > 30) this.state = "CAUTIOUS";
+    else if (this.aggression > 80) this.state = "RUTHLESS";
+    else if (this.aggression > 55) this.state = "AGGRESSIVE";
+    else if (this.aggression > 35) this.state = "TACTICAL";
     else this.state = "DEFENSIVE";
 
     return {
       distance: dist, healthPct: hpPercent, playerHealthPct: playerHpPercent, playerAggro: 0, playerMagic: magicCd,
       hazardProximity: hazardDist, energyPct: energyPct, aggressionOutput: this.aggression, stateDescription: this.state,
+      playerStance: { ...this.playerStance },
       fuzzyDist: { ...this.distance }, fuzzyHealth: { ...this.health }, fuzzyPlayerHealth: { ...this.playerHealth },
       fuzzyAggro: { calm: 0, fight: 0, spamming: 0 }, fuzzyMagic: { ...this.playerMagic },
       fuzzyHazard: { ...this.hazardProximity }, fuzzyEnergy: { ...this.energy }, fuzzyAggression: { ...this.aggressionFuzzy }
@@ -124,15 +146,12 @@ export class FuzzyAI {
 
 export class MerchantAI {
   evaluate(totalGoldSpent: number, playerHpPct: number): number {
-    // Inputs: VIP Status (Gold spent), Sympathy (Low HP)
-    const vipLevel = trapezoid(totalGoldSpent, 100, 300, 1000, 5000); // 0 to 1
-    const sympathy = trapezoid(playerHpPct, -1, 0, 30, 50); // High if low HP
+    const vipLevel = trapezoid(totalGoldSpent, 100, 300, 1000, 5000); 
+    const sympathy = trapezoid(playerHpPct, -1, 0, 30, 50);
 
-    // Rules
-    const rVipDiscount = vipLevel; // Up to 30%
-    const rSympathyDiscount = sympathy * 0.15; // Up to 15%
+    const rVipDiscount = vipLevel; 
+    const rSympathyDiscount = sympathy * 0.15; 
     
-    // Aggregation (capped at 45%)
     return Math.min(45, (rVipDiscount * 30) + (rSympathyDiscount * 100));
   }
 }

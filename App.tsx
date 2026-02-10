@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import GameScene from './components/GameScene';
@@ -10,6 +11,7 @@ import { MerchantAI } from './services/fuzzyLogic';
 const INITIAL_PLAYER_STATE: PlayerState = {
   position: { x: 0, y: 0, z: 5 },
   hp: 100, maxHp: 100, magicCd: 0, maxMagicCd: 60, recentAttacks: 0, isAttacking: false,
+  isDodging: false, isDefending: false, isHealing: false,
   gold: 0, totalGoldSpent: 0, damageMultiplier: 1.0
 };
 
@@ -97,26 +99,26 @@ function App() {
         </Canvas>
       </div>
 
-      {/* Control Hints Left (Cleaned up) */}
       <div className="absolute top-4 left-4 z-20 flex flex-col gap-2 pointer-events-auto">
          <div className="bg-black/60 border border-gray-700 p-3 rounded-lg backdrop-blur text-[10px] font-mono text-gray-400 space-y-1">
-            <p><b className="text-white uppercase">Context [E]:</b></p>
-            <p className="text-green-400">Safe Zone: Shop</p>
-            <p className="text-cyan-400">Battlefield: Magic</p>
-            <p className="mt-2"><b className="text-white">[SPACE]</b> Melee</p>
-            <p><b className="text-white">[WASD]</b> Move</p>
+            <p><b className="text-white uppercase">Controls:</b></p>
+            <p><b className="text-cyan-400">[WASD]</b> Move</p>
+            <p><b className="text-cyan-400">[SHIFT]</b> Dodge Roll</p>
+            <p><b className="text-cyan-400">[Q]</b> Block (Held)</p>
+            <p><b className="text-cyan-400">[F]</b> Heal Channel</p>
+            <p><b className="text-cyan-400">[E]</b> Special / Shop</p>
+            <p><b className="text-cyan-400">[SPACE]</b> Melee Strike</p>
          </div>
       </div>
 
       <div className="absolute inset-0 z-10 pointer-events-none">
          <UIOverlay player={playerState} enemies={enemies} logs={logs} />
          
-         {/* Top HUD Area */}
          <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-auto flex items-center gap-2">
             <div className="bg-black/80 border border-yellow-600/50 px-4 py-2 rounded-full flex items-center gap-3 backdrop-blur shadow-lg">
                 <span className="text-yellow-500 font-black">💰 {playerState.gold}g</span>
                 {Math.sqrt(playerState.position.x**2 + playerState.position.z**2) < 5.5 && (
-                    <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest animate-pulse border-l border-white/10 pl-3">Merchant Range</span>
+                    <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest animate-pulse border-l border-white/10 pl-3">Sanctuary Active</span>
                 )}
             </div>
             
@@ -178,7 +180,7 @@ function App() {
               {gameOverState.isOver ? (gameOverState.won ? "DOMINATED" : "FALLEN") : "TWIN GUARDIANS"}
             </h1>
             <p className="text-gray-500 mb-10 text-[10px] uppercase tracking-[0.4em] font-black">
-              Logic Analytics & Context Action Update
+              Fuzzy Intelligence & Action-Reaction Combat
             </p>
             <button 
               onClick={startGame}
