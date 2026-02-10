@@ -1,17 +1,19 @@
+
 import React, { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid } from 'recharts';
 import { triangle, trapezoid } from '../services/fuzzyLogic';
 
+// Use readonly modifiers to allow compatibility with 'as const' data definitions in consumers
 interface FuzzyGraphProps {
   title: string;
   currentValue: number;
   min: number;
   max: number;
-  sets: {
-    name: string;
-    color: string;
-    type: 'triangle' | 'trapezoid';
-    params: number[];
+  sets: readonly {
+    readonly name: string;
+    readonly color: string;
+    readonly type: 'triangle' | 'trapezoid';
+    readonly params: readonly number[];
   }[];
 }
 

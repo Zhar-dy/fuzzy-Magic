@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import GameScene from './components/GameScene';
@@ -50,14 +49,14 @@ function App() {
   const handleGameOver = useCallback((won: boolean) => {
       setGameActive(false);
       setGameOverState({ isOver: true, won });
-      handleLog(won ? "VICTORY! Boundary secure." : "SYSTEM FAILURE: Operator offline.", 'info');
+      handleLog(won ? "TRIUMPH! The dungeon is purged." : "TRAGEDY! A hero falls in the dark.", 'info');
   }, [handleLog]);
 
   const startGame = () => {
       setSessionKey(prev => prev + 1); 
       setEnemies([]);
       setMetrics(null);
-      setLogs([{ id: 'init', text: 'System reboot complete. Defense protocol initiated.', type: 'info' }]);
+      setLogs([{ id: 'init', text: 'You step into the abyss. May the Old Gods protect you.', type: 'info' }]);
       setGameOverState({ isOver: false, won: false });
       setGameActive(true);
       setShowShop(false);
@@ -76,14 +75,14 @@ function App() {
         hp: type === 'hp' ? Math.min(100, p.hp + 40) : p.hp,
         damageMultiplier: type === 'str' ? p.damageMultiplier + 0.2 : (type === 'dmg' ? p.damageMultiplier + 0.25 : p.damageMultiplier)
       }));
-      handleLog(`Hardware upgrade acquired: ${type.toUpperCase()} module.`, 'info');
+      handleLog(`A magical artifact acquired: ${type === 'hp' ? 'Health Potion' : type === 'str' ? 'Strength Elixir' : 'Ring of Power'}.`, 'info');
     } else {
-      handleLog("Insufficient credits for module upgrade.", 'combat');
+      handleLog("You lack the gold for such treasures.", 'combat');
     }
   };
 
   return (
-    <div className="relative w-full h-screen bg-[#020205] overflow-hidden select-none font-sans">
+    <div className="relative w-full h-screen bg-[#1a120b] overflow-hidden select-none font-serif">
       <div className="absolute inset-0 z-0">
         <Canvas shadows camera={{ position: [0, 15, 15], fov: 40 }}>
             <GameScene 
@@ -99,62 +98,60 @@ function App() {
         </Canvas>
       </div>
 
-      {/* Main UI Layer */}
       <div className="absolute inset-0 z-10 pointer-events-none">
          <UIOverlay player={playerState} enemies={enemies} logs={logs} />
          
          <div className="absolute top-6 left-1/2 -translate-x-1/2 pointer-events-auto flex items-center gap-4">
-            <div className="bg-black/80 border border-yellow-600/30 px-6 py-2 rounded-2xl flex items-center gap-4 backdrop-blur-xl shadow-[0_0_20px_rgba(234,179,8,0.1)]">
-                <span className="text-yellow-500 font-black text-sm tracking-widest">CREDITS: {playerState.gold}</span>
+            <div className="bg-[#2c241b]/95 border-2 border-yellow-700/30 px-6 py-2 rounded-2xl flex items-center gap-4 backdrop-blur-xl shadow-2xl">
+                <span className="text-yellow-500 font-black text-sm tracking-widest uppercase">GOLD: {playerState.gold}</span>
                 {Math.sqrt(playerState.position.x**2 + playerState.position.z**2) < 5.5 && (
-                    <span className="text-[10px] text-green-400 font-black uppercase tracking-[0.3em] animate-pulse border-l border-white/10 pl-4">Sanctuary Sync</span>
+                    <span className="text-[10px] text-yellow-600 font-black uppercase tracking-[0.3em] animate-pulse border-l border-yellow-900/20 pl-4 italic">Hallowed Ground</span>
                 )}
             </div>
             
             <button 
               onClick={() => setTheoryModal('math')}
-              className="bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-400 font-black text-[10px] px-6 py-2.5 rounded-2xl uppercase tracking-widest shadow-lg border border-cyan-400/30 transition-all backdrop-blur-xl"
+              className="bg-[#3e2b1c] hover:bg-yellow-900/40 text-yellow-500 font-black text-[10px] px-6 py-2.5 rounded-2xl uppercase tracking-widest shadow-xl border-2 border-yellow-700/20 transition-all backdrop-blur-xl"
             >
-              System Logic
+              Arcane Knowledge
             </button>
          </div>
       </div>
 
       {showShop && (
-        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-[#020205]/90 backdrop-blur-xl">
-           <div className="bg-[#0a0a0f] border border-yellow-600/20 rounded-[2.5rem] p-10 max-w-md w-full shadow-[0_0_100px_rgba(234,179,8,0.05)]">
-              <div className="flex justify-between items-center mb-10 border-b border-white/5 pb-6">
+        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-xl">
+           <div className="bg-[#2c241b] border-4 border-yellow-800 rounded-[2.5rem] p-10 max-w-md w-full shadow-[0_0_100px_rgba(234,179,8,0.1)]">
+              <div className="flex justify-between items-center mb-10 border-b border-yellow-900/20 pb-6">
                  <div>
-                    <h2 className="text-3xl font-black text-yellow-500 italic uppercase tracking-tighter">Imperial Cache</h2>
-                    <p className="text-[10px] text-gray-500 font-mono tracking-widest uppercase mt-1">Loyalty Discount Applied: {currentDiscount.toFixed(1)}%</p>
+                    <h2 className="text-3xl font-black text-yellow-600 italic uppercase tracking-tighter">Wandering Merchant</h2>
+                    <p className="text-[10px] text-yellow-900/60 font-sans tracking-widest uppercase mt-1 font-bold">Blessing of Wealth: {currentDiscount.toFixed(1)}% Discount</p>
                  </div>
-                 <button onClick={() => setShowShop(false)} className="text-gray-600 hover:text-white text-4xl transition-colors font-light">&times;</button>
+                 <button onClick={() => setShowShop(false)} className="text-yellow-900/40 hover:text-yellow-500 text-4xl transition-colors font-light">&times;</button>
               </div>
 
-              <div className="space-y-4">
-                 <button onClick={() => buyItem('hp')} className="w-full bg-white/5 p-5 rounded-[1.5rem] flex justify-between items-center border border-white/5 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all group">
-                    <div><h3 className="font-bold text-white uppercase text-xs tracking-widest group-hover:text-blue-400 transition-colors">Vitality Core</h3></div>
-                    <span className="bg-blue-600 text-white px-5 py-2 rounded-xl text-[10px] font-black">{Math.floor(100 * (1 - currentDiscount / 100))}c</span>
+              <div className="space-y-4 font-sans">
+                 <button onClick={() => buyItem('hp')} className="w-full bg-black/20 p-5 rounded-[1.5rem] flex justify-between items-center border border-yellow-900/10 hover:border-yellow-600 transition-all group">
+                    <div><h3 className="font-bold text-yellow-100 uppercase text-xs tracking-widest group-hover:text-yellow-400">Health Potion</h3></div>
+                    <span className="bg-red-900 text-white px-5 py-2 rounded-xl text-[10px] font-black">{Math.floor(100 * (1 - currentDiscount / 100))}g</span>
                  </button>
-                 <button onClick={() => buyItem('str')} className="w-full bg-white/5 p-5 rounded-[1.5rem] flex justify-between items-center border border-white/5 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all group">
-                    <div><h3 className="font-bold text-white uppercase text-xs tracking-widest group-hover:text-purple-400 transition-colors">Kinetic Amp</h3></div>
-                    <span className="bg-purple-600 text-white px-5 py-2 rounded-xl text-[10px] font-black">{Math.floor(250 * (1 - currentDiscount / 100))}c</span>
+                 <button onClick={() => buyItem('str')} className="w-full bg-black/20 p-5 rounded-[1.5rem] flex justify-between items-center border border-yellow-900/10 hover:border-yellow-600 transition-all group">
+                    <div><h3 className="font-bold text-yellow-100 uppercase text-xs tracking-widest group-hover:text-yellow-400">Strength Elixir</h3></div>
+                    <span className="bg-blue-900 text-white px-5 py-2 rounded-xl text-[10px] font-black">{Math.floor(250 * (1 - currentDiscount / 100))}g</span>
                  </button>
-                 <button onClick={() => buyItem('dmg')} className="w-full bg-white/5 p-5 rounded-[1.5rem] flex justify-between items-center border border-white/5 hover:border-red-500/50 hover:bg-red-500/5 transition-all group">
-                    <div><h3 className="font-bold text-red-400 uppercase text-xs italic tracking-widest group-hover:text-red-500 transition-colors">Overclock Drive</h3></div>
-                    <span className="bg-red-600 text-white px-5 py-2 rounded-xl text-[10px] font-black">{Math.floor(300 * (1 - currentDiscount / 100))}c</span>
+                 <button onClick={() => buyItem('dmg')} className="w-full bg-black/20 p-5 rounded-[1.5rem] flex justify-between items-center border border-yellow-900/10 hover:border-yellow-600 transition-all group">
+                    <div><h3 className="font-bold text-yellow-100 uppercase text-xs tracking-widest group-hover:text-yellow-400">Ring of Power</h3></div>
+                    <span className="bg-yellow-600 text-black px-5 py-2 rounded-xl text-[10px] font-black">{Math.floor(300 * (1 - currentDiscount / 100))}g</span>
                  </button>
               </div>
 
-              <div className="mt-12 pt-6 border-t border-white/5 flex justify-between items-center text-[10px] text-gray-500 font-mono">
-                 <span className="bg-gray-900 px-3 py-1 rounded-full">CREDITS: {playerState.gold}c</span>
-                 <button onClick={() => setShowShop(false)} className="text-yellow-500 font-black uppercase hover:underline">Exit Cache</button>
+              <div className="mt-12 pt-6 border-t border-yellow-900/20 flex justify-between items-center text-[10px] text-yellow-900/60 font-bold uppercase">
+                 <span className="bg-black/40 px-3 py-1 rounded-full">WALLET: {playerState.gold}g</span>
+                 <button onClick={() => setShowShop(false)} className="text-yellow-600 hover:underline">Leave Merchant</button>
               </div>
            </div>
         </div>
       )}
 
-      {/* Fuzzy Dashboard Sidebar */}
       <div className="absolute inset-y-0 right-0 z-20 pointer-events-auto">
           <FuzzyDashboard metrics={metrics} />
       </div>
@@ -163,23 +160,22 @@ function App() {
         <FuzzyTheoryModal type={theoryModal as any} onClose={() => setTheoryModal(null)} />
       )}
 
-      {/* Menu / Game Over Screen */}
       {(!gameActive) && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#020205]/95 backdrop-blur-2xl p-6">
-          <div className="text-center p-16 border border-white/5 bg-white/[0.02] rounded-[3rem] shadow-[0_0_150px_rgba(59,130,246,0.1)] max-w-2xl w-full">
-            <h1 className="text-7xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 tracking-tighter italic uppercase">
-              {gameOverState.isOver ? (gameOverState.won ? "DOMINANCE" : "TERMINATED") : "FUZZY_GUARD"}
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#1a120b]/95 backdrop-blur-2xl p-6">
+          <div className="text-center p-16 border-4 border-yellow-900/20 bg-[#2c241b]/50 rounded-[3rem] shadow-2xl max-w-2xl w-full">
+            <h1 className="text-7xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-br from-yellow-400 via-yellow-600 to-red-800 tracking-tighter italic uppercase">
+              {gameOverState.isOver ? (gameOverState.won ? "GLORIOUS" : "FALLEN") : "FUZZY_SOULS"}
             </h1>
-            <p className="text-gray-500 mb-12 text-[10px] uppercase tracking-[0.5em] font-black">
-              NEURAL INTERFACE & BATTLE LOGIC ENGINE
+            <p className="text-yellow-900/60 mb-12 text-[10px] uppercase tracking-[0.5em] font-black">
+              Ancient Scrolls & Tactical Divination
             </p>
             <button 
               onClick={startGame}
-              className="w-full py-6 bg-gradient-to-br from-blue-600 to-purple-700 rounded-[2rem] text-white font-black text-2xl hover:scale-[1.02] transition-all shadow-[0_20px_40px_rgba(37,99,235,0.3)] active:scale-[0.98]"
+              className="w-full py-6 bg-gradient-to-br from-yellow-700 to-red-900 rounded-[2rem] text-white font-black text-2xl hover:scale-[1.02] transition-all shadow-2xl active:scale-[0.98] uppercase tracking-widest"
             >
-              INITIALIZE DEFENSE
+              Begin Pilgrimage
             </button>
-            <p className="mt-8 text-[9px] text-gray-600 font-mono tracking-widest uppercase italic">Unauthorized Access Prohibited // Division Alpha</p>
+            <p className="mt-8 text-[9px] text-yellow-900/40 font-mono tracking-[0.3em] uppercase italic">The Weaver watches your every thread</p>
           </div>
         </div>
       )}
