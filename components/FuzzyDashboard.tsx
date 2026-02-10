@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import FuzzyGraph from './FuzzyGraph';
 import { FuzzyMetrics } from '../types';
 
@@ -6,69 +6,83 @@ interface FuzzyDashboardProps {
   metrics: FuzzyMetrics | null;
 }
 
+// Decision Matrix Aesthetic Palette
 const DISTANCE_SETS = [
-  { name: "Close", color: "#b91c1c", type: "trapezoid", params: [-1, 0, 4, 8] },
-  { name: "Medium", color: "#b45309", type: "triangle", params: [4, 10, 16] },
-  { name: "Far", color: "#15803d", type: "trapezoid", params: [10, 16, 100, 100] }
+  { name: "Close", color: "#ef4444", type: "trapezoid", params: [-1, 0, 4, 8] },      // Red
+  { name: "Medium", color: "#f59e0b", type: "triangle", params: [4, 10, 16] },      // Amber
+  { name: "Far", color: "#14b8a6", type: "trapezoid", params: [10, 16, 100, 100] }   // Teal
 ] as const;
 
 const HEALTH_SETS = [
-  { name: "Critical", color: "#b91c1c", type: "trapezoid", params: [-1, 0, 30, 40] },
-  { name: "Healthy", color: "#15803d", type: "trapezoid", params: [60, 80, 100, 101] }
+  { name: "Critical", color: "#dc2626", type: "trapezoid", params: [-1, 0, 30, 40] }, // Crimson
+  { name: "Healthy", color: "#10b981", type: "trapezoid", params: [60, 80, 100, 101] } // Emerald
+] as const;
+
+const ENERGY_SETS = [
+  { name: "Empty", color: "#ef4444", type: "trapezoid", params: [-1, 0, 10, 25] },     // Red
+  { name: "Low", color: "#f97316", type: "triangle", params: [15, 35, 55] },         // Orange
+  { name: "Full", color: "#10b981", type: "trapezoid", params: [45, 75, 100, 101] }   // Emerald
 ] as const;
 
 const AGGRESSION_SETS = [
-  { name: "Passive", color: "#1e40af", type: "trapezoid", params: [-1, 0, 25, 45] },
-  { name: "Neutral", color: "#6d28d9", type: "triangle", params: [30, 50, 70] },
-  { name: "Hostile", color: "#b91c1c", type: "trapezoid", params: [55, 75, 100, 101] }
+  { name: "Passive", color: "#3b82f6", type: "trapezoid", params: [-1, 0, 25, 45] },  // Electric Blue
+  { name: "Neutral", color: "#7c3aed", type: "triangle", params: [30, 50, 70] },     // Deep Purple
+  { name: "Hostile", color: "#ef4444", type: "trapezoid", params: [55, 75, 100, 101] } // High Red
 ] as const;
 
 const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({ metrics }) => {
   if (!metrics) return null;
 
   return (
-    <div className="absolute right-4 top-4 bottom-4 w-80 bg-[#2c241b]/95 backdrop-blur-md border-2 border-yellow-700/50 p-5 flex flex-col gap-4 overflow-y-auto rounded-xl pointer-events-auto shadow-2xl font-serif">
-      <div className="border-b border-yellow-800 pb-3">
-        <h2 className="text-xl font-bold text-yellow-500 tracking-tight uppercase italic drop-shadow-md">Arcane Calculus</h2>
-        <div className="flex items-center gap-2 mt-1">
-            <span className="text-[10px] text-yellow-600/70 font-bold uppercase font-sans">Tactical Stance:</span>
-            <span className={`text-[10px] font-black px-2 py-0.5 rounded shadow-sm transition-all duration-500 font-sans ${
-                metrics.stateDescription === 'INTERRUPTING' ? 'bg-orange-800 text-white animate-pulse' :
-                metrics.stateDescription === 'CONSERVING' ? 'bg-blue-800 text-white' :
-                metrics.stateDescription === 'FINAL STAND' ? 'bg-red-900 text-white animate-pulse' :
-                metrics.stateDescription === 'BERSERK' ? 'bg-purple-800 text-white' :
-                'bg-yellow-800 text-white'
+    <div className="h-screen w-80 bg-zinc-950/80 backdrop-blur-xl border-r border-zinc-800 p-6 flex flex-col gap-6 overflow-y-auto pointer-events-auto shadow-2xl scrollbar-hide">
+      <div className="border-b border-zinc-800 pb-5">
+        <h2 className="text-lg font-black text-white tracking-widest uppercase italic bg-gradient-to-r from-zinc-200 to-zinc-500 bg-clip-text text-transparent">
+          Decision Matrix
+        </h2>
+        <div className="flex items-center gap-2 mt-2">
+            <span className="text-[10px] text-zinc-500 font-bold uppercase">System State:</span>
+            <span className={`text-[10px] font-black px-2 py-0.5 rounded shadow-sm transition-all duration-500 ${
+                metrics.stateDescription === 'INTERRUPTING' ? 'bg-orange-500 text-black animate-pulse' :
+                metrics.stateDescription === 'CONSERVING' ? 'bg-blue-600 text-white' :
+                metrics.stateDescription === 'FINAL STAND' ? 'bg-red-600 text-white animate-pulse' :
+                metrics.stateDescription === 'BERSERK' ? 'bg-purple-600 text-white' :
+                'bg-zinc-800 text-zinc-300'
             }`}>
                 {metrics.stateDescription}
             </span>
         </div>
       </div>
 
-      <FuzzyGraph title="Dist: Feet" currentValue={metrics.distance} min={0} max={30} sets={[...DISTANCE_SETS]} />
+      <div className="space-y-4">
+        <FuzzyGraph title="Proximity (Feet)" currentValue={metrics.distance} min={0} max={30} sets={[...DISTANCE_SETS]} />
 
-      <FuzzyGraph title="Hero's Vitality" currentValue={metrics.playerHealthPct} min={0} max={100} sets={[...HEALTH_SETS]} />
+        <FuzzyGraph title="Vessel Vitality" currentValue={metrics.playerHealthPct} min={0} max={100} sets={[...HEALTH_SETS]} />
+        
+        <FuzzyGraph title="Core Energy" currentValue={metrics.energyPct} min={0} max={100} sets={[...ENERGY_SETS]} />
 
-      <div className="bg-[#1a120b] p-3 rounded-lg border border-yellow-900/40">
-        <h3 className="text-[10px] font-bold text-yellow-600 uppercase tracking-widest mb-3 text-center font-sans">Behavioral State</h3>
-        <div className="grid grid-cols-4 gap-2">
-            {Object.entries(metrics.playerStance).map(([key, val]) => (
-                <div key={key} className="flex flex-col items-center">
-                    <div className="h-10 w-2.5 bg-black rounded-full relative overflow-hidden border border-yellow-900/20">
-                        <div 
-                            className={`absolute bottom-0 left-0 right-0 transition-all duration-300 ${val > 0.5 ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]' : 'bg-gray-800'}`} 
-                            style={{ height: `${val * 100}%` }}
-                        />
-                    </div>
-                    <span className="text-[7px] text-yellow-700 uppercase mt-1.5 font-sans font-bold">{key}</span>
-                </div>
-            ))}
+        <div className="bg-[#0f1115] p-4 rounded-xl border border-zinc-800 shadow-inner">
+          <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Tactical Stance</h3>
+          <div className="grid grid-cols-4 gap-3">
+              {Object.entries(metrics.playerStance).map(([key, val]) => (
+                  <div key={key} className="flex flex-col items-center">
+                      <div className="h-12 w-2.5 bg-zinc-950 rounded-full relative overflow-hidden border border-zinc-800">
+                          <div 
+                              className={`absolute bottom-0 left-0 right-0 transition-all duration-500 ${val > 0.5 ? 'bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.6)]' : 'bg-zinc-900'}`} 
+                              style={{ height: `${val * 100}%` }}
+                          />
+                      </div>
+                      <span className="text-[7px] text-zinc-600 uppercase mt-2 font-black">{key}</span>
+                  </div>
+              ))}
+          </div>
         </div>
+
+        {/* Fix typo: AGGGRESSION_SETS -> AGGRESSION_SETS */}
+        <FuzzyGraph title="Aggression Vector" currentValue={metrics.aggressionOutput} min={0} max={100} sets={[...AGGRESSION_SETS]} />
       </div>
 
-      <FuzzyGraph title="Aggression Output" currentValue={metrics.aggressionOutput} min={0} max={100} sets={[...AGGRESSION_SETS]} />
-
-      <div className="mt-auto pt-4 border-t border-yellow-900/40 text-center">
-        <p className="text-[8px] text-yellow-800 uppercase tracking-[0.2em] font-sans font-black italic">Neural Web Synchronized</p>
+      <div className="mt-auto pt-6 border-t border-zinc-800 text-center">
+        <p className="text-[8px] text-zinc-600 uppercase tracking-[0.3em] font-black italic">Mamdani Engine Active</p>
       </div>
     </div>
   );

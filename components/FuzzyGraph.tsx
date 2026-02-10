@@ -1,9 +1,7 @@
-
 import React, { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid } from 'recharts';
 import { triangle, trapezoid } from '../services/fuzzyLogic';
 
-// Use readonly modifiers to allow compatibility with 'as const' data definitions in consumers
 interface FuzzyGraphProps {
   title: string;
   currentValue: number;
@@ -18,13 +16,11 @@ interface FuzzyGraphProps {
 }
 
 const FuzzyGraph: React.FC<FuzzyGraphProps> = ({ title, currentValue, min, max, sets }) => {
-  
-  // Strict clamp to ensure marker never leaves the visual container
   const clampedValue = Math.max(min, Math.min(max, currentValue));
 
   const data = useMemo(() => {
     const points = [];
-    const steps = 60; 
+    const steps = 40; 
     const step = (max - min) / steps; 
     for (let i = 0; i <= steps; i++) {
       const x = min + i * step;
@@ -42,30 +38,29 @@ const FuzzyGraph: React.FC<FuzzyGraphProps> = ({ title, currentValue, min, max, 
   }, [min, max, sets]);
 
   return (
-    <div className="bg-gray-900/80 p-3 rounded-lg border border-gray-700 shadow-xl backdrop-blur-sm">
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{title}</h3>
-        <span className="text-xs font-mono text-cyan-400 bg-cyan-950 px-1.5 rounded border border-cyan-900/30">
+    <div className="bg-[#0f1115] p-4 rounded-xl border border-zinc-800 shadow-xl">
+      <div className="flex justify-between items-start mb-3">
+        <h3 className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">{title}</h3>
+        <div className="text-[10px] font-mono font-bold text-cyan-400 bg-cyan-950 px-2 py-0.5 rounded-sm border border-cyan-900/50 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
           {currentValue.toFixed(1)}
-        </span>
+        </div>
       </div>
-      <div className="h-24 w-full">
+      <div className="h-28 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 5, right: 1, left: 1, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+          <AreaChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="4 4" stroke="#18181b" vertical={false} />
             <XAxis 
               dataKey="x" 
               type="number" 
               hide 
               domain={[min, max]} 
               padding={{ left: 0, right: 0 }}
-              scale="linear"
             />
             <YAxis hide domain={[0, 1.1]} />
             <Tooltip 
-                contentStyle={{ backgroundColor: '#111', border: '1px solid #444', fontSize: '10px' }}
+                contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', fontSize: '9px', borderRadius: '4px' }}
                 itemStyle={{ padding: 0 }}
-                labelStyle={{ color: '#aaa' }}
+                labelStyle={{ color: '#71717a' }}
                 isAnimationActive={false}
             />
             {sets.map((set) => (
@@ -75,25 +70,26 @@ const FuzzyGraph: React.FC<FuzzyGraphProps> = ({ title, currentValue, min, max, 
                 dataKey={set.name}
                 stroke={set.color}
                 fill={set.color}
-                fillOpacity={0.2}
-                strokeWidth={2}
+                fillOpacity={0.05}
+                strokeWidth={3}
                 isAnimationActive={false}
               />
             ))}
             <ReferenceLine 
               x={clampedValue} 
-              stroke="#fff" 
+              stroke="#ffffff" 
               strokeWidth={2} 
-              strokeDasharray="4 4"
+              strokeDasharray="5 5"
+              className="drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]"
             />
           </AreaChart>
         </ResponsiveContainer>
       </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 justify-center border-t border-gray-800 pt-1">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 justify-start border-t border-zinc-800 pt-2">
           {sets.map(s => (
-              <div key={s.name} className="flex items-center gap-1">
-                  <div className="w-2 h-0.5 rounded-full" style={{ backgroundColor: s.color }}></div>
-                  <span className="text-[8px] text-gray-500 font-bold uppercase">{s.name}</span>
+              <div key={s.name} className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: s.color }}></div>
+                  <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-tighter">{s.name}</span>
               </div>
           ))}
       </div>

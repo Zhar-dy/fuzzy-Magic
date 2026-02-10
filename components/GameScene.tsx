@@ -42,11 +42,11 @@ const HitEffect: React.FC<{ position: [number, number, number] }> = ({ position 
     <mesh ref={meshRef} position={position}>
       <sphereGeometry args={[0.6, 16, 16]} />
       <meshStandardMaterial 
-        color="#ffaa00" 
+        color="#fbbf24" 
         transparent 
         opacity={1} 
-        emissive="#ff5500" 
-        emissiveIntensity={10} 
+        emissive="#fbbf24" 
+        emissiveIntensity={8} 
       />
     </mesh>
   );
@@ -57,15 +57,15 @@ const NPCMerchant: React.FC<{ position: [number, number, number] }> = ({ positio
     <Float speed={2} rotationIntensity={0.5} floatIntensity={1}>
       <mesh position={[0, 1.2, 0]}>
         <dodecahedronGeometry args={[0.7, 0]} />
-        <meshStandardMaterial color="#fbbf24" metalness={0.9} roughness={0.1} emissive="#78350f" emissiveIntensity={0.5} />
+        <meshStandardMaterial color="#3f3f46" metalness={1} roughness={0} emissive="#06b6d4" emissiveIntensity={1} />
       </mesh>
     </Float>
     <mesh position={[0, 0.2, 0]}>
       <cylinderGeometry args={[0.8, 0.8, 0.2, 8]} />
-      <meshStandardMaterial color="#451a03" />
+      <meshStandardMaterial color="#18181b" />
     </mesh>
-    <pointLight position={[0, 1.5, 0]} color="#fbbf24" intensity={2} distance={8} />
-    <Sparkles count={40} scale={3} size={4} speed={0.3} color="#fbbf24" />
+    <pointLight position={[0, 1.5, 0]} color="#06b6d4" intensity={3} distance={10} />
+    <Sparkles count={40} scale={3} size={4} speed={0.3} color="#06b6d4" />
   </group>
 );
 
@@ -141,51 +141,46 @@ const MagePlayer = ({ playerRef }: { playerRef: React.MutableRefObject<any> }) =
             bodyRef.current.material.emissiveIntensity = playerRef.current.flashTimer * 3;
             playerRef.current.flashTimer--;
         } else {
-            bodyRef.current.material.emissive.setHex(0xffffff);
-            bodyRef.current.material.emissiveIntensity = 0.1;
+            bodyRef.current.material.emissive.setHex(0x06b6d4);
+            bodyRef.current.material.emissiveIntensity = 0.5;
         }
     }
   });
 
   return (
     <group>
-      {/* Wizard Robe */}
       <mesh ref={bodyRef} position={[0, 0.75, 0]}>
         <coneGeometry args={[0.5, 1.5, 8]} />
-        <meshStandardMaterial color="#1e3a8a" roughness={0.8} />
+        <meshStandardMaterial color="#18181b" roughness={0.5} metalness={0.8} />
       </mesh>
-      {/* Head */}
       <mesh position={[0, 1.45, 0]}>
         <sphereGeometry args={[0.22]} />
-        <meshStandardMaterial color="#fef3c7" />
+        <meshStandardMaterial color="#52525b" />
       </mesh>
-      {/* Wooden Staff */}
       <group ref={staffRef} position={[0.6, 0.8, 0.2]}>
         <mesh position={[0, 0, 0]}>
           <cylinderGeometry args={[0.04, 0.05, 2.2]} />
-          <meshStandardMaterial color="#422006" />
+          <meshStandardMaterial color="#09090b" />
         </mesh>
         <mesh position={[0, 1.2, 0]}>
           <octahedronGeometry args={[0.18, 0]} />
-          <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={5} />
+          <meshStandardMaterial color="#06b6d4" emissive="#06b6d4" emissiveIntensity={8} />
         </mesh>
-        <pointLight position={[0, 1.2, 0]} color="#fbbf24" intensity={1} distance={4} />
+        <pointLight position={[0, 1.2, 0]} color="#06b6d4" intensity={2} distance={5} />
       </group>
-      {/* Magical Ward (Shield) */}
       <group ref={shieldRef} scale={[0,0,0]}>
         <mesh position={[0, 0.8, 0.8]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[1.0, 0.03, 16, 64]} />
-          <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={4} transparent opacity={0.5} />
+          <meshStandardMaterial color="#06b6d4" emissive="#06b6d4" emissiveIntensity={5} transparent opacity={0.5} />
         </mesh>
       </group>
     </group>
   );
 };
 
-const GuardianEnemy = ({ enemyId, enemyRef, color, position, isAttacking }: { 
+const GuardianEnemy = ({ enemyId, enemyRef, position, isAttacking }: { 
   enemyId: string, 
   enemyRef: React.RefObject<THREE.Group>, 
-  color: string, 
   position: [number, number, number],
   isAttacking: boolean
 }) => {
@@ -194,11 +189,11 @@ const GuardianEnemy = ({ enemyId, enemyRef, color, position, isAttacking }: {
   useFrame((state) => {
     if (meshRef.current && meshRef.current.material instanceof THREE.MeshStandardMaterial) {
       if (isAttacking) {
-        meshRef.current.material.emissive.setHex(0xff0000);
-        meshRef.current.material.emissiveIntensity = 20 + Math.sin(state.clock.elapsedTime * 40) * 10;
+        meshRef.current.material.emissive.setHex(0xff1111);
+        meshRef.current.material.emissiveIntensity = 15 + Math.sin(state.clock.elapsedTime * 40) * 10;
       } else {
-        meshRef.current.material.emissive.setHex(0x550000);
-        meshRef.current.material.emissiveIntensity = 1.0;
+        meshRef.current.material.emissive.setHex(0x330000);
+        meshRef.current.material.emissiveIntensity = 0.5;
       }
     }
   });
@@ -207,13 +202,14 @@ const GuardianEnemy = ({ enemyId, enemyRef, color, position, isAttacking }: {
     <group ref={enemyRef} name={enemyId} position={position}>
       <mesh ref={meshRef} position={[0, 1, 0]}>
         <boxGeometry args={[1.2, 1.2, 1.2]} />
-        <meshStandardMaterial color="#333" metalness={0.9} roughness={0.1} />
+        {/* Soft Red Body */}
+        <meshStandardMaterial color="#cc4444" metalness={0.5} roughness={0.7} />
       </mesh>
       <mesh position={[0, 1, 0.4]}>
           <sphereGeometry args={[0.1]} />
           <meshBasicMaterial color="#ff0000" />
       </mesh>
-      <pointLight position={[0, 1, 0.5]} color="#ff0000" intensity={0.5} distance={5} />
+      <pointLight position={[0, 1, 0.5]} color="#ff0000" intensity={1} distance={6} />
     </group>
   );
 };
@@ -260,7 +256,7 @@ const GameScene: React.FC<{
         const radius = 22 + Math.random() * 6; 
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
-        newEnemies.push({ id, position: { x, y: 0, z }, hp: 50, maxHp: 50, energy: 100, color: '#ff2222' });
+        newEnemies.push({ id, position: { x, y: 0, z }, hp: 50, maxHp: 50, energy: 100, color: '#ef4444' });
         enemyRefs.current[id] = React.createRef<THREE.Group>();
         aiInstances.current[id] = new FuzzyAI();
         enemyAttackCooldowns.current[id] = 0;
@@ -363,7 +359,7 @@ const GameScene: React.FC<{
     setProjectiles(prev => [...prev, { 
         id: Date.now() + Math.random(),
         x: playerRef.current.x, z: playerRef.current.z, 
-        vx: dir.x * 0.6, vz: dir.z * 0.6, color: "#fbbf24" 
+        vx: dir.x * 0.6, vz: dir.z * 0.6, color: "#06b6d4" 
     }]);
   };
 
@@ -467,7 +463,7 @@ const GameScene: React.FC<{
                     if (damage > 0) {
                       p.hp -= damage;
                       triggerDamageFlash();
-                      onLog(`The titan strikes! -${Math.floor(damage)} Vitality`, 'combat');
+                      onLog(`Integrity compromised! -${Math.floor(damage)} Vitality`, 'combat');
                     }
                     newPos.x = THREE.MathUtils.lerp(newPos.x, p.x, 0.2);
                     newPos.z = THREE.MathUtils.lerp(newPos.z, p.z, 0.2);
@@ -503,7 +499,6 @@ const GameScene: React.FC<{
     
     if (p.hp <= 0) onGameOver(false);
 
-    // THROTLLING: Update UI/AI metrics every 10 frames to avoid state thrashing and performance lag
     throttleCounter.current++;
     if (throttleCounter.current % 10 === 0) {
         if (primaryMetrics) onMetricsUpdate(primaryMetrics);
@@ -513,31 +508,31 @@ const GameScene: React.FC<{
 
   return (
     <>
-      <color attach="background" args={['#1a120b']} />
-      <fog attach="fog" args={['#1a120b', 10, 50]} />
+      <color attach="background" args={['#09090b']} />
+      <fog attach="fog" args={['#09090b', 10, 50]} />
       <Environment preset="night" />
       
-      <ambientLight intensity={0.2} />
-      <directionalLight position={[10, 20, 10]} intensity={0.8} color="#fcd34d" castShadow />
+      <ambientLight intensity={0.15} />
+      <directionalLight position={[10, 20, 10]} intensity={1.5} color="#06b6d4" castShadow />
       
-      {/* Dungeon Floor */}
+      {/* Refined Floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <planeGeometry args={[150, 150]} />
-          <meshStandardMaterial color="#2d2214" roughness={1} />
+          <meshStandardMaterial color="#0c0c0e" roughness={0.8} />
       </mesh>
       
-      <Stars radius={100} depth={50} count={2000} factor={4} saturation={0} fade speed={1} />
+      <Stars radius={100} depth={50} count={3000} factor={4} saturation={0} fade speed={1} />
       
-      {/* Holy Sanctuary Boundary */}
-      <Torus args={[SAFE_ZONE_RADIUS, 0.06, 16, 128]} rotation={[Math.PI/2, 0, 0]} position={[0, 0.05, 0]}>
-        <meshStandardMaterial color="#fcd34d" emissive="#fbbf24" emissiveIntensity={3} transparent opacity={0.6} />
+      {/* Refined Sanctuary Ward */}
+      <Torus args={[SAFE_ZONE_RADIUS, 0.05, 16, 128]} rotation={[Math.PI/2, 0, 0]} position={[0, 0.05, 0]}>
+        <meshStandardMaterial color="#06b6d4" emissive="#06b6d4" emissiveIntensity={4} transparent opacity={0.6} />
       </Torus>
 
       <NPCMerchant position={[0, 0, 0]} />
       
       <group ref={playerMesh}>
         <MagePlayer playerRef={playerRef} />
-        <pointLight position={[0, 2, 0]} color="#fbbf24" intensity={1} distance={6} />
+        <pointLight position={[0, 2, 0]} color="#06b6d4" intensity={2} distance={8} />
       </group>
       
       {enemies.map(e => (
@@ -547,7 +542,6 @@ const GameScene: React.FC<{
           enemyRef={enemyRefs.current[e.id] as any} 
           position={[e.position.x, 0, e.position.z]}
           isAttacking={enemyVisualStates[e.id]?.isAttacking || false}
-          color="#333" 
         />
       ))}
 
@@ -573,10 +567,10 @@ const GameScene: React.FC<{
 
       <ContactShadows 
         position={[0, -0.01, 0]} 
-        opacity={0.6} 
+        opacity={0.8} 
         scale={40} 
         blur={2.5} 
-        far={4.5} 
+        far={5} 
       />
     </>
   );
