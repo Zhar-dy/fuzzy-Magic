@@ -1,7 +1,16 @@
-
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Sky, Float, Sparkles, Torus, Sphere } from '@react-three/drei';
+import { 
+  Sky, 
+  Sparkles, 
+  Torus, 
+  Environment, 
+  Grid, 
+  Float, 
+  ContactShadows,
+  PerspectiveCamera,
+  Stars
+} from '@react-three/drei';
 import * as THREE from 'three';
 import { FuzzyAI } from '../services/fuzzyLogic';
 import { PlayerState, EnemyState, FuzzyMetrics, Vector3 } from '../types';
@@ -17,42 +26,49 @@ declare global {
 const PLAYER_SPEED = 0.15;
 const SAFE_ZONE_RADIUS = 5.5;
 const MERCHANT_INTERACT_RADIUS = 3.0;
+const ENEMY_STOP_DISTANCE = 2.2; // Prevents clipping into player
+const ENEMY_SEPARATION_STRENGTH = 0.05;
 
-// Visual feedback for when a hit occurs
+// High-tech impact effect
 const HitEffect: React.FC<{ position: [number, number, number] }> = ({ position }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   useFrame((state) => {
     if (meshRef.current) {
-      meshRef.current.scale.multiplyScalar(1.15);
+      meshRef.current.scale.multiplyScalar(1.2);
       if (meshRef.current.material instanceof THREE.MeshStandardMaterial) {
-        meshRef.current.material.opacity *= 0.85;
+        meshRef.current.material.opacity *= 0.8;
       }
     }
   });
 
   return (
     <mesh ref={meshRef} position={position}>
-      <sphereGeometry args={[0.5, 16, 16]} />
-      <meshStandardMaterial color="#ff0000" transparent opacity={0.8} emissive="#ff0000" emissiveIntensity={5} />
+      <sphereGeometry args={[0.6, 16, 16]} />
+      <meshStandardMaterial 
+        color="#ff2255" 
+        transparent 
+        opacity={1} 
+        emissive="#ff0000" 
+        emissiveIntensity={10} 
+      />
     </mesh>
   );
 };
 
 const NPCMerchant: React.FC<{ position: [number, number, number] }> = ({ position }) => (
   <group position={position}>
-    <mesh position={[0, 0.8, 0]}>
-      <capsuleGeometry args={[0.4, 1, 4, 8]} />
-      <meshStandardMaterial color="#fbbf24" roughness={0.5} />
+    <Float speed={2} rotationIntensity={0.5} floatIntensity={1}>
+      <mesh position={[0, 1, 0]}>
+        <octahedronGeometry args={[0.6, 0]} />
+        <meshStandardMaterial color="#fbbf24" metalness={1} roughness={0} emissive="#fbbf24" emissiveIntensity={0.5} />
+      </mesh>
+    </Float>
+    <mesh position={[0, 0.2, 0]}>
+      <cylinderGeometry args={[0.5, 0.8, 0.4, 6]} />
+      <meshStandardMaterial color="#222" metalness={0.8} />
     </mesh>
-    <mesh position={[0, 1.7, 0]}>
-      <sphereGeometry args={[0.3]} />
-      <meshStandardMaterial color="#fef3c7" />
-    </mesh>
-    <mesh position={[0, 2.2, 0]}>
-        <torusGeometry args={[0.3, 0.05, 16, 32]} />
-        <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={2} />
-    </mesh>
-    <Sparkles count={20} scale={2} size={2} speed={0.5} color="#fbbf24" />
+    <pointLight position={[0, 1.5, 0]} color="#fbbf24" intensity={2} distance={5} />
+    <Sparkles count={30} scale={2} size={3} speed={0.4} color="#fbbf24" />
   </group>
 );
 
@@ -62,7 +78,6 @@ const Projectile: React.FC<{
     velocity: Vector3, 
     targets: React.RefObject<THREE.Group>[], 
     color: string, 
-    isPlayer: boolean,
     onHit: (projId: number, targetId: string) => void, 
     onMiss: (id: number) => void 
 }> = ({ id, initialPosition, velocity, targets, color, onHit, onMiss }) => {
@@ -73,10 +88,13 @@ const Projectile: React.FC<{
 
   useFrame(() => {
     if (!ref.current) return;
-    pos.current.x += velocity.x; pos.current.z += velocity.z;
+    pos.current.x += velocity.x; 
+    pos.current.z += velocity.z;
     ref.current.position.copy(pos.current);
-    ref.current.rotation.x += 0.2;
+    ref.current.rotation.y += 0.4;
+    
     if (Date.now() - startTime.current > 3000) { onMiss(id); return; }
+    
     targets.forEach(targetRef => {
         if (targetRef?.current) {
             const targetId = targetRef.current.name;
@@ -84,7 +102,7 @@ const Projectile: React.FC<{
             const targetPos = targetRef.current.position;
             const dx = pos.current.x - targetPos.x;
             const dz = pos.current.z - targetPos.z;
-            if (dx * dx + dz * dz < 2.5) {
+            if (dx * dx + dz * dz < 3) {
                 hitIds.current.add(targetId);
                 onHit(id, targetId);
             }
@@ -94,8 +112,11 @@ const Projectile: React.FC<{
 
   return (
     <group ref={ref}>
-      <mesh><octahedronGeometry args={[0.3, 0]} /><meshStandardMaterial color={color} emissive={color} emissiveIntensity={4} /></mesh>
-      <pointLight distance={3} intensity={2} color={color} />
+      <mesh rotation={[Math.PI / 4, 0, Math.PI / 4]}>
+        <boxGeometry args={[0.4, 0.4, 0.4]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={8} />
+      </mesh>
+      <pointLight distance={4} intensity={5} color={color} />
     </group>
   );
 };
@@ -108,21 +129,23 @@ const MagePlayer = ({ playerRef }: { playerRef: React.MutableRefObject<any> }) =
   useFrame((state) => {
     if (staffRef.current) {
       const { isAttacking, isDefending } = playerRef.current;
-      staffRef.current.rotation.x = isAttacking ? THREE.MathUtils.lerp(staffRef.current.rotation.x, -1.8, 0.4) : THREE.MathUtils.lerp(staffRef.current.rotation.x, 0.2, 0.1);
-      staffRef.current.position.x = isDefending ? 0.2 : 0.5;
+      staffRef.current.rotation.x = isAttacking 
+        ? THREE.MathUtils.lerp(staffRef.current.rotation.x, -2, 0.3) 
+        : THREE.MathUtils.lerp(staffRef.current.rotation.x, 0.2, 0.1);
     }
     if (shieldRef.current) {
         shieldRef.current.visible = playerRef.current.isDefending;
         shieldRef.current.rotation.y += 0.05;
+        shieldRef.current.scale.setScalar(THREE.MathUtils.lerp(shieldRef.current.scale.x, playerRef.current.isDefending ? 1 : 0, 0.2));
     }
-    // Visual flash on damage
     if (bodyRef.current && bodyRef.current.material instanceof THREE.MeshStandardMaterial) {
         if (playerRef.current.flashTimer > 0) {
             bodyRef.current.material.emissive.setHex(0xff0000);
-            bodyRef.current.material.emissiveIntensity = playerRef.current.flashTimer / 5;
+            bodyRef.current.material.emissiveIntensity = playerRef.current.flashTimer * 2;
             playerRef.current.flashTimer--;
         } else {
-            bodyRef.current.material.emissive.setHex(0x000000);
+            bodyRef.current.material.emissive.setHex(0x0044ff);
+            bodyRef.current.material.emissiveIntensity = 0.5;
         }
     }
   });
@@ -130,19 +153,25 @@ const MagePlayer = ({ playerRef }: { playerRef: React.MutableRefObject<any> }) =
   return (
     <group>
       <mesh ref={bodyRef} position={[0, 0.75, 0]}>
-        <coneGeometry args={[0.45, 1.5, 8]} />
-        <meshStandardMaterial color="#3b82f6" />
+        <capsuleGeometry args={[0.4, 0.7, 4, 16]} />
+        <meshStandardMaterial color="#1e3a8a" metalness={0.8} roughness={0.2} />
       </mesh>
-      <mesh position={[0, 1.4, 0]}><sphereGeometry args={[0.25]} /><meshStandardMaterial color="#1e3a8a" /></mesh>
-      <group ref={staffRef} position={[0.5, 0.8, 0.3]}>
-        <mesh><cylinderGeometry args={[0.02, 0.03, 1.8]} /><meshStandardMaterial color="#422006" /></mesh>
-        <mesh position={[0, 0.9, 0]}><dodecahedronGeometry args={[0.12]} /><meshStandardMaterial color="#22d3ee" emissive="#22d3ee" /></mesh>
+      <group ref={staffRef} position={[0.6, 0.8, 0.2]}>
+        <mesh position={[0, 0, 0]}>
+          <cylinderGeometry args={[0.03, 0.03, 2]} />
+          <meshStandardMaterial color="#111" />
+        </mesh>
+        <mesh position={[0, 1.1, 0]}>
+          <octahedronGeometry args={[0.15, 0]} />
+          <meshStandardMaterial color="#22d3ee" emissive="#22d3ee" emissiveIntensity={10} />
+        </mesh>
+        <pointLight position={[0, 1.1, 0]} color="#22d3ee" intensity={2} distance={3} />
       </group>
-      <group ref={shieldRef} position={[0, 0.8, 0.5]}>
-          <mesh rotation={[0, 0, 0]}>
-              <torusGeometry args={[0.8, 0.02, 8, 32]} />
-              <meshBasicMaterial color="#3b82f6" transparent opacity={0.5} />
-          </mesh>
+      <group ref={shieldRef} scale={[0,0,0]}>
+        <mesh position={[0, 0.8, 0.8]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.9, 0.05, 16, 64]} />
+          <meshStandardMaterial color="#3b82f6" emissive="#3b82f6" emissiveIntensity={5} transparent opacity={0.6} />
+        </mesh>
       </group>
     </group>
   );
@@ -156,14 +185,18 @@ const GuardianEnemy = ({ enemyId, enemyRef, color, position, isAttacking }: {
   isAttacking: boolean
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
+  const lightRef = useRef<THREE.PointLight>(null);
 
   useFrame((state) => {
     if (meshRef.current && meshRef.current.material instanceof THREE.MeshStandardMaterial) {
       if (isAttacking) {
         meshRef.current.material.emissive.setHex(0xff0000);
-        meshRef.current.material.emissiveIntensity = 10 + Math.sin(state.clock.elapsedTime * 20) * 5;
+        meshRef.current.material.emissiveIntensity = 15 + Math.sin(state.clock.elapsedTime * 30) * 10;
+        if (lightRef.current) lightRef.current.intensity = 10;
       } else {
-        meshRef.current.material.emissive.setHex(0x000000);
+        meshRef.current.material.emissive.setHex(0xff4444);
+        meshRef.current.material.emissiveIntensity = 1.0;
+        if (lightRef.current) lightRef.current.intensity = 1;
       }
     }
   });
@@ -171,12 +204,14 @@ const GuardianEnemy = ({ enemyId, enemyRef, color, position, isAttacking }: {
   return (
     <group ref={enemyRef} name={enemyId} position={position}>
       <mesh ref={meshRef} position={[0, 1, 0]}>
-        <icosahedronGeometry args={[0.8, 0]} />
-        <meshStandardMaterial color={color} flatShading metalness={0.7} roughness={0.2} />
+        <dodecahedronGeometry args={[0.8, 0]} />
+        <meshStandardMaterial color={color} metalness={0.9} roughness={0.1} />
       </mesh>
-      <mesh position={[0.3, 1.2, 0.5]}><boxGeometry args={[0.15, 0.05, 0.1]} /><meshBasicMaterial color="#fde047" /></mesh>
-      <mesh position={[-0.3, 1.2, 0.5]}><boxGeometry args={[0.15, 0.05, 0.1]} /><meshBasicMaterial color="#fde047" /></mesh>
-      {isAttacking && <pointLight color="#ff0000" intensity={2} distance={3} />}
+      <mesh position={[0, 0.1, 0]}>
+        <cylinderGeometry args={[0.6, 0.6, 0.1, 32]} />
+        <meshStandardMaterial color="#000" emissive="#ff0000" emissiveIntensity={2} />
+      </mesh>
+      <pointLight ref={lightRef} position={[0, 1.5, 0]} color="#ff0000" intensity={1} distance={6} />
     </group>
   );
 };
@@ -222,13 +257,13 @@ const GameScene: React.FC<{
         const radius = 22 + Math.random() * 6; 
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
-        newEnemies.push({ id, position: { x, y: 0, z }, hp: 50, maxHp: 50, energy: 100, color: '#ff4444' });
+        newEnemies.push({ id, position: { x, y: 0, z }, hp: 50, maxHp: 50, energy: 100, color: '#ff2222' });
         enemyRefs.current[id] = React.createRef<THREE.Group>();
         aiInstances.current[id] = new FuzzyAI();
         enemyAttackCooldowns.current[id] = 0;
     }
     setEnemies(newEnemies);
-    onLog("Guardians have appeared outside the Sanctuary.", "info");
+    onLog("Boundary breached. Defense protocol active.", "info");
   };
 
   useEffect(() => {
@@ -271,7 +306,7 @@ const GameScene: React.FC<{
       if (!gameActive || playerRef.current.healTimer > 0) return;
       playerRef.current.isHealing = true;
       playerRef.current.healTimer = 120;
-      onLog("Channeling restorative magic... VULNERABLE!", "combat");
+      onLog("Initiating repair cycle.", "info");
   };
 
   const handleContextKey = () => {
@@ -284,20 +319,20 @@ const GameScene: React.FC<{
   };
 
   const triggerDamageFlash = () => {
-    playerRef.current.flashTimer = 15;
+    playerRef.current.flashTimer = 20;
     setEffects(prev => [...prev, { id: Date.now() + Math.random(), pos: [playerRef.current.x, 1, playerRef.current.z] }]);
-    // Cleanup old effects after 1 sec
     setTimeout(() => {
         setEffects(prev => prev.slice(1));
-    }, 1000);
+    }, 800);
   };
 
   const performAttack = () => {
     if (!gameActive || playerRef.current.isAttacking) return;
-    playerRef.current.isAttacking = true; playerRef.current.attackTimer = 15;
+    playerRef.current.isAttacking = true; 
+    playerRef.current.attackTimer = 20;
     enemies.forEach(e => {
-        const dist = Math.sqrt((e.position.x - playerRef.current.x) ** 2 + (e.position.z - playerRef.current.z) ** 2);
-        if (dist < 3.5) handleEnemyDamage(e.id, 10 * playerRef.current.damageMultiplier);
+        const distSq = (e.position.x - playerRef.current.x)**2 + (e.position.z - playerRef.current.z)**2;
+        if (distSq < 16) handleEnemyDamage(e.id, 12 * playerRef.current.damageMultiplier);
     });
   };
 
@@ -307,7 +342,7 @@ const GameScene: React.FC<{
         if (!target) return prev;
         const newHp = Math.max(0, target.hp - dmg);
         if (newHp <= 0) {
-            onLog(`Guardian defeated! +100g`, "combat");
+            onLog(`Unit terminated. Credits retrieved.`, "combat");
             playerRef.current.gold += 100;
             delete enemyRefs.current[enemyId];
             delete aiInstances.current[enemyId];
@@ -323,15 +358,17 @@ const GameScene: React.FC<{
     playerRef.current.magicCd = 60;
     const dir = new THREE.Vector3().subVectors(mousePosRef.current, new THREE.Vector3(playerRef.current.x, 0, playerRef.current.z)).normalize();
     setProjectiles(prev => [...prev, { 
-        id: Date.now() + Math.random(), isPlayer: true, 
+        id: Date.now() + Math.random(),
         x: playerRef.current.x, z: playerRef.current.z, 
-        vx: dir.x * 0.5, vz: dir.z * 0.5, color: "#22d3ee" 
+        vx: dir.x * 0.6, vz: dir.z * 0.6, color: "#22d3ee" 
     }]);
   };
 
   useFrame((state) => {
     if (!gameActive) return;
     const p = playerRef.current;
+    
+    // Update raycaster for mouse aim
     raycaster.setFromCamera(pointer, camera); 
     const intersect = new THREE.Vector3(); 
     raycaster.ray.intersectPlane(floorPlane.current, intersect); 
@@ -339,18 +376,20 @@ const GameScene: React.FC<{
 
     p.isDefending = !!keys.current['KeyQ'];
 
+    // Player Movement
     const move = new THREE.Vector3(0, 0, 0);
     if (!p.isHealing) {
         if (keys.current['KeyW']) move.z -= 1; if (keys.current['KeyS']) move.z += 1; if (keys.current['KeyD']) move.x += 1; if (keys.current['KeyA']) move.x -= 1;
     }
     
-    let speed = PLAYER_SPEED;
-    if (p.isDodging) speed *= 2.5;
-    if (p.isDefending) speed *= 0.4;
+    let currentMoveSpeed = PLAYER_SPEED;
+    if (p.isDodging) currentMoveSpeed *= 2.5;
+    if (p.isDefending) currentMoveSpeed *= 0.3;
 
-    if (move.length() > 0) move.normalize().multiplyScalar(speed);
+    if (move.length() > 0) move.normalize().multiplyScalar(currentMoveSpeed);
     p.x += move.x; p.z += move.z;
 
+    // Timers
     if (p.attackTimer > 0) p.attackTimer--; else p.isAttacking = false;
     if (p.dodgeTimer > 0) {
         p.dodgeTimer--;
@@ -359,9 +398,9 @@ const GameScene: React.FC<{
     if (p.healTimer > 0) {
         p.healTimer--;
         if (p.healTimer === 0) {
-            p.hp = Math.min(100, p.hp + 25);
+            p.hp = Math.min(100, p.hp + 20);
             p.isHealing = false;
-            onLog("Restoration complete.", "info");
+            onLog("Repair sequence finalized.", "info");
         }
     }
     if (p.magicCd > 0) p.magicCd--;
@@ -372,103 +411,156 @@ const GameScene: React.FC<{
     let primaryMetrics: FuzzyMetrics | null = null;
     const nextVisualStates: Record<string, { isAttacking: boolean }> = {};
 
-    setEnemies(prev => prev.map(e => {
-        const ai = aiInstances.current[e.id];
-        if (!ai) return e;
-        const distToPlayer = Math.sqrt((p.x - e.position.x) ** 2 + (p.z - e.position.z) ** 2);
-        const metrics = ai.evaluate(
-            Math.min(distToPlayer, 30), 
-            (e.hp / 50) * 100, 
-            p.hp, 
-            p.magicCd, 
-            10, 
-            e.energy,
-            p.isDodging,
-            p.isDefending,
-            p.isHealing
-        );
-        if (!primaryMetrics) primaryMetrics = metrics;
+    setEnemies(prev => {
+        return prev.map(e => {
+            const ai = aiInstances.current[e.id];
+            if (!ai) return e;
 
-        const newPos = { ...e.position };
-        const dCenterSq = newPos.x*newPos.x + newPos.z*newPos.z;
-
-        if (dCenterSq < (SAFE_ZONE_RADIUS + 0.2)**2) {
-            const pushDir = new THREE.Vector2(newPos.x, newPos.z).normalize();
-            newPos.x = pushDir.x * (SAFE_ZONE_RADIUS + 0.5);
-            newPos.z = pushDir.y * (SAFE_ZONE_RADIUS + 0.5);
-        } else if (!isPlayerSafe) {
-            const angle = Math.atan2(p.z - e.position.z, p.x - e.position.x);
+            const dx = p.x - e.position.x;
+            const dz = p.z - e.position.z;
+            const dist = Math.sqrt(dx*dx + dz*dz);
             
-            // SIGNIFICANTLY SLOWED DOWN MOVEMENT
-            const baseChaseSpeed = 0.012; 
-            const aggressionBonus = Math.max(0, (metrics.aggressionOutput - 20) * 0.002);
-            const finalSpeed = baseChaseSpeed + aggressionBonus;
+            const metrics = ai.evaluate(
+                Math.min(dist, 30), 
+                (e.hp / 50) * 100, 
+                p.hp, 
+                p.magicCd, 
+                10, 
+                e.energy,
+                p.isDodging,
+                p.isDefending,
+                p.isHealing
+            );
+            if (!primaryMetrics) primaryMetrics = metrics;
 
-            // Combat logic: Attack if close enough and aggression is high
-            const cooldown = enemyAttackCooldowns.current[e.id] || 0;
-            if (distToPlayer < 3.0 && metrics.aggressionOutput > 45 && cooldown <= 0) {
-                // Strike!
-                nextVisualStates[e.id] = { isAttacking: true };
-                enemyAttackCooldowns.current[e.id] = 90; // Attack every 1.5 seconds approx
+            const newPos = { ...e.position };
+            const dCenterSq = newPos.x*newPos.x + newPos.z*newPos.z;
+
+            // Separation force from other enemies
+            const separation = new THREE.Vector3(0,0,0);
+            prev.forEach(other => {
+                if (other.id === e.id) return;
+                const dEnemyX = e.position.x - other.position.x;
+                const dEnemyZ = e.position.z - other.position.z;
+                const dEnemyDistSq = dEnemyX*dEnemyX + dEnemyZ*dEnemyZ;
+                if (dEnemyDistSq < 4) {
+                    separation.x += (dEnemyX / dEnemyDistSq) * ENEMY_SEPARATION_STRENGTH;
+                    separation.z += (dEnemyZ / dEnemyDistSq) * ENEMY_SEPARATION_STRENGTH;
+                }
+            });
+
+            if (dCenterSq < (SAFE_ZONE_RADIUS + 0.2)**2) {
+                const pushDir = new THREE.Vector2(newPos.x, newPos.z).normalize();
+                newPos.x = pushDir.x * (SAFE_ZONE_RADIUS + 0.5);
+                newPos.z = pushDir.y * (SAFE_ZONE_RADIUS + 0.5);
+            } else if (!isPlayerSafe) {
+                const angle = Math.atan2(dz, dx);
                 
-                // Discrete damage deduction
-                let strikeDamage = 8;
-                if (p.isDefending) strikeDamage *= 0.2;
-                if (p.isHealing) strikeDamage *= 1.5;
-                if (p.isDodging) strikeDamage = 0;
+                // Aggression-based speed
+                const baseChaseSpeed = 0.012; 
+                const aggressionBonus = Math.max(0, (metrics.aggressionOutput - 20) * 0.003);
+                const finalSpeed = baseChaseSpeed + aggressionBonus;
 
-                if (strikeDamage > 0) {
-                  p.hp -= strikeDamage;
-                  triggerDamageFlash();
-                  onLog(`Guardian strikes for ${Math.floor(strikeDamage)} damage!`, 'combat');
+                const cooldown = enemyAttackCooldowns.current[e.id] || 0;
+                
+                // Attack logic
+                if (dist < 3.2 && metrics.aggressionOutput > 40 && cooldown <= 0) {
+                    nextVisualStates[e.id] = { isAttacking: true };
+                    enemyAttackCooldowns.current[e.id] = 120; // 2 sec cooldown
+                    
+                    let damage = 10;
+                    if (p.isDefending) damage *= 0.2;
+                    if (p.isHealing) damage *= 1.5;
+                    if (p.isDodging) damage = 0;
+
+                    if (damage > 0) {
+                      p.hp -= damage;
+                      triggerDamageFlash();
+                      onLog(`Integrity compromised: -${Math.floor(damage)} HP`, 'combat');
+                    }
+                    
+                    // Smooth lunge with lerp
+                    newPos.x = THREE.MathUtils.lerp(newPos.x, p.x, 0.2);
+                    newPos.z = THREE.MathUtils.lerp(newPos.z, p.z, 0.2);
+                } else if (dist > ENEMY_STOP_DISTANCE) {
+                    // Normal chase
+                    newPos.x += Math.cos(angle) * finalSpeed;
+                    newPos.z += Math.sin(angle) * finalSpeed;
+                    nextVisualStates[e.id] = { isAttacking: false };
+                } else {
+                    // Too close, stop
+                    nextVisualStates[e.id] = { isAttacking: false };
                 }
 
-                // Lunge animation
-                newPos.x += Math.cos(angle) * 1.5;
-                newPos.z += Math.sin(angle) * 1.5;
+                if (enemyAttackCooldowns.current[e.id] > 0) {
+                    enemyAttackCooldowns.current[e.id]--;
+                }
             } else {
-                newPos.x += Math.cos(angle) * finalSpeed;
-                newPos.z += Math.sin(angle) * finalSpeed;
+                newPos.x += (Math.random() - 0.5) * 0.02;
+                newPos.z += (Math.random() - 0.5) * 0.02;
                 nextVisualStates[e.id] = { isAttacking: false };
             }
 
-            if (enemyAttackCooldowns.current[e.id] > 0) {
-              enemyAttackCooldowns.current[e.id]--;
-            }
-        } else {
-          newPos.x += (Math.random() - 0.5) * 0.01;
-          newPos.z += (Math.random() - 0.5) * 0.01;
-          nextVisualStates[e.id] = { isAttacking: false };
-        }
-        
-        return { ...e, position: newPos, energy: Math.min(100, e.energy + 0.2) };
-    }));
+            // Apply separation
+            newPos.x += separation.x;
+            newPos.z += separation.z;
+            
+            return { ...e, position: newPos, energy: Math.min(100, e.energy + 0.2) };
+        });
+    });
 
     setEnemyVisualStates(nextVisualStates);
 
     if (playerMesh.current) {
         playerMesh.current.position.set(p.x, 0, p.z);
-        playerMesh.current.lookAt(mousePosRef.current.x, 0.75, mousePosRef.current.z);
+        playerMesh.current.lookAt(mousePosRef.current.x, 0, mousePosRef.current.z);
     }
-    state.camera.position.lerp(new THREE.Vector3(p.x, 15, p.z + 18), 0.1); 
-    state.camera.lookAt(p.x, 0, p.z);
+    
+    // Smooth camera chase
+    const targetCamPos = new THREE.Vector3(p.x, 15, p.z + 14);
+    camera.position.lerp(targetCamPos, 0.08); 
+    camera.lookAt(p.x, 0, p.z);
     
     if (p.hp <= 0) onGameOver(false);
     if (primaryMetrics) onMetricsUpdate(primaryMetrics);
+    
+    // Reliability Fix: Sync every frame
     onStatsUpdate({ ...p, position: { x: p.x, y: 0, z: p.z } }, enemies);
   });
 
   return (
     <>
-      <ambientLight intensity={1.5} /><Sky sunPosition={[100, 20, 100]} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow><planeGeometry args={[100, 100]} /><meshStandardMaterial color="#064e3b" /></mesh>
+      <color attach="background" args={['#020205']} />
+      <fog attach="fog" args={['#020205', 10, 45]} />
+      <Environment preset="city" />
       
-      <Torus args={[SAFE_ZONE_RADIUS, 0.1, 16, 100]} rotation={[Math.PI/2, 0, 0]} position={[0, 0.05, 0]}>
-        <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={3} transparent opacity={0.4} />
+      <ambientLight intensity={0.4} />
+      <directionalLight position={[10, 20, 10]} intensity={1.5} castShadow />
+      
+      {/* Visual Floor: Cyber Grid */}
+      <Grid 
+        infiniteGrid 
+        fadeDistance={50} 
+        fadeStrength={5} 
+        cellSize={1} 
+        sectionSize={5} 
+        sectionColor="#22d3ee" 
+        cellColor="#083344"
+        position={[0, -0.01, 0]} 
+      />
+      <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+      
+      {/* Visual Sanctuary Boundary */}
+      <Torus args={[SAFE_ZONE_RADIUS, 0.05, 16, 128]} rotation={[Math.PI/2, 0, 0]} position={[0, 0.05, 0]}>
+        <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={5} transparent opacity={0.6} />
       </Torus>
 
       <NPCMerchant position={[0, 0, 0]} />
-      <group ref={playerMesh}><MagePlayer playerRef={playerRef} /></group>
+      
+      <group ref={playerMesh}>
+        <MagePlayer playerRef={playerRef} />
+        <pointLight position={[0, 2, 0]} color="#3b82f6" intensity={1} distance={5} />
+      </group>
       
       {enemies.map(e => (
         <GuardianEnemy 
@@ -477,7 +569,7 @@ const GameScene: React.FC<{
           enemyRef={enemyRefs.current[e.id] as any} 
           position={[e.position.x, 0, e.position.z]}
           isAttacking={enemyVisualStates[e.id]?.isAttacking || false}
-          color={e.hp < 15 ? "#a855f7" : "#ef4444"} 
+          color={e.hp < 15 ? "#a855f7" : "#ff2222"} 
         />
       ))}
 
@@ -487,23 +579,27 @@ const GameScene: React.FC<{
       
       {projectiles.map(pr => (
         <Projectile 
-          key={pr.id} id={pr.id} color={pr.color} initialPosition={{ x: pr.x, y: 1.2, z: pr.z }} velocity={{ x: pr.vx, y: 0, z: pr.vz }} 
-          isPlayer={pr.isPlayer} targets={pr.isPlayer ? Object.values(enemyRefs.current) : [playerMesh as any]} 
+          key={pr.id} 
+          id={pr.id} 
+          color={pr.color} 
+          initialPosition={{ x: pr.x, y: 1.2, z: pr.z }} 
+          velocity={{ x: pr.vx, y: 0, z: pr.vz }} 
+          targets={Object.values(enemyRefs.current)} 
           onHit={(projId, targetId) => {
-              if (pr.isPlayer) handleEnemyDamage(targetId, 15 * playerRef.current.damageMultiplier);
-              else {
-                  let damage = 12;
-                  if (playerRef.current.isDefending) damage *= 0.3;
-                  if (playerRef.current.isDodging) damage = 0;
-                  if (damage > 0) {
-                    playerRef.current.hp -= damage;
-                    triggerDamageFlash();
-                  }
-              }
+              handleEnemyDamage(targetId, 18 * playerRef.current.damageMultiplier);
+              setProjectiles(prev => prev.filter(o => o.id !== projId));
           }} 
           onMiss={(id) => setProjectiles(prev => prev.filter(o => o.id !== id))} 
         />
       ))}
+
+      <ContactShadows 
+        position={[0, -0.01, 0]} 
+        opacity={0.4} 
+        scale={40} 
+        blur={2} 
+        far={4.5} 
+      />
     </>
   );
 };
