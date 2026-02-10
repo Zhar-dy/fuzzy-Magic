@@ -29,6 +29,8 @@ function App() {
   const [metrics, setMetrics] = useState<FuzzyMetrics | null>(null);
   const [logs, setLogs] = useState<GameLogEntry[]>([]);
 
+  const [highlightStat, setHighlightStat] = useState<'hp' | 'dmg' | null>(null);
+
   const merchant = useMemo(() => new MerchantAI(), []);
   const currentDiscount = useMemo(() => {
     return merchant.evaluate(playerState.totalGoldSpent, playerState.hp);
@@ -39,6 +41,7 @@ function App() {
   }, []);
 
   const handleStatsUpdate = useCallback((p: PlayerState, eList: EnemyState[]) => {
+    // Prevent state updates if game is supposed to be resetting
     setPlayerState(prev => ({ 
         ...prev, 
         ...p,
@@ -54,6 +57,7 @@ function App() {
   }, [handleLog]);
 
   const startGame = () => {
+      // Increment session key to force full unmount/remount of GameScene
       setSessionKey(prev => prev + 1); 
       setEnemies([]);
       setMetrics(null);
@@ -66,9 +70,19 @@ function App() {
   };
 
   const handleReset = () => {
-    if (window.confirm("Are you sure you want to restart the simulation? All progress will be lost.")) {
-      startGame();
-    }
+    // Respawn enemies and reset encounter without going back to title screen
+    setGameActive(false);
+    setPlayerState(INITIAL_PLAYER_STATE);
+    setEnemies([]);
+    setMetrics(null);
+    setLogs([{ id: 'reset', text: 'Simulation reset. Entities respawned.', type: 'info' }]);
+    setGameOverState({ isOver: false, won: false });
+    setSessionKey(prev => prev + 1); // Force scene remount
+    
+    // Slight delay to ensure clean remount before activating
+    setTimeout(() => {
+        setGameActive(true);
+    }, 50);
   };
 
   const buyItem = (type: 'hp' | 'str' | 'dmg') => {
@@ -83,6 +97,11 @@ function App() {
         hp: type === 'hp' ? Math.min(100, p.hp + 40) : p.hp,
         damageMultiplier: type === 'str' ? p.damageMultiplier + 0.2 : (type === 'dmg' ? p.damageMultiplier + 0.25 : p.damageMultiplier)
       }));
+      
+      const statType = type === 'hp' ? 'hp' : 'dmg';
+      setHighlightStat(statType);
+      setTimeout(() => setHighlightStat(null), 1000);
+
       handleLog(`Acquired ${type === 'hp' ? 'Vitality Draught' : type === 'str' ? 'Strength Elixir' : 'Ring of Power'}.`, 'info');
     } else {
       handleLog("Insufficient gold for this relic.", 'combat');
@@ -123,7 +142,7 @@ function App() {
                 onClick={handleReset}
                 className="bg-rose-900/90 hover:bg-rose-800 text-zinc-100 font-bold text-[10px] px-4 py-2.5 rounded-xl uppercase tracking-widest shadow-xl border border-rose-800 transition-all backdrop-blur-xl"
               >
-                Reset
+                Respawn
               </button>
             )}
             <button 
@@ -152,7 +171,7 @@ function App() {
       {showShop && (
         <div className="absolute inset-0 z-[60] flex items-center justify-center bg-zinc-950/90 backdrop-blur-xl p-4">
            <div className="bg-zinc-900 border border-zinc-800 rounded-[2rem] p-8 max-w-md w-full shadow-2xl">
-              <div className="flex justify-between items-center mb-8 border-b border-zinc-800 pb-6">
+              <div className="flex justify-between items-center mb-6 border-b border-zinc-800 pb-6">
                  <div>
                     <h2 className="text-2xl font-black text-amber-500 italic uppercase tracking-tighter">Imperial Cache</h2>
                     <p className="text-[10px] text-zinc-500 tracking-widest uppercase mt-1">Loyalty Discount: {currentDiscount.toFixed(1)}%</p>
@@ -160,24 +179,45 @@ function App() {
                  <button onClick={() => setShowShop(false)} className="text-zinc-600 hover:text-white text-3xl transition-colors">&times;</button>
               </div>
 
-              <div className="space-y-4">
-                 <button onClick={() => buyItem('hp')} className="w-full bg-zinc-950/50 p-5 rounded-2xl flex justify-between items-center border border-zinc-800 hover:border-amber-500/50 hover:bg-zinc-800 transition-all group">
-                    <div><h3 className="font-bold text-zinc-100 uppercase text-xs tracking-widest group-hover:text-amber-400 transition-colors">Vitality Draught</h3></div>
-                    <span className="bg-amber-600 text-black px-4 py-1.5 rounded-lg text-[10px] font-black">{Math.floor(100 * (1 - currentDiscount / 100))}g</span>
+              {/* Current Stats Panel */}
+              <div className="grid grid-cols-2 gap-4 mb-6 bg-zinc-950/50 p-4 rounded-xl border border-zinc-800">
+                  <div className={`flex flex-col items-center transition-all duration-300 ${highlightStat === 'hp' ? 'text-emerald-400 scale-105' : 'text-zinc-400'}`}>
+                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">Current Vitality</span>
+                      <span className="text-xl font-black">{Math.floor(playerState.hp)} <span className="text-sm font-bold text-zinc-600">/ {playerState.maxHp}</span></span>
+                  </div>
+                  <div className={`flex flex-col items-center transition-all duration-300 ${highlightStat === 'dmg' ? 'text-emerald-400 scale-105' : 'text-zinc-400'}`}>
+                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">Damage Output</span>
+                      <span className="text-xl font-black">{(playerState.damageMultiplier * 100).toFixed(0)}%</span>
+                  </div>
+              </div>
+
+              <div className="space-y-3">
+                 <button onClick={() => buyItem('hp')} className="w-full bg-zinc-950/50 p-4 rounded-2xl flex justify-between items-center border border-zinc-800 hover:border-amber-500/50 hover:bg-zinc-800 transition-all group">
+                    <div className="text-left">
+                        <h3 className="font-bold text-zinc-100 uppercase text-xs tracking-widest group-hover:text-amber-400 transition-colors">Vitality Draught</h3>
+                        <p className="text-[9px] text-zinc-500 mt-1 font-medium">Instantly restores 40 HP up to max capacity.</p>
+                    </div>
+                    <span className="bg-amber-600 text-black px-4 py-1.5 rounded-lg text-[10px] font-black min-w-[60px] text-center">{Math.floor(100 * (1 - currentDiscount / 100))}g</span>
                  </button>
-                 <button onClick={() => buyItem('str')} className="w-full bg-zinc-950/50 p-5 rounded-2xl flex justify-between items-center border border-zinc-800 hover:border-blue-500/50 hover:bg-zinc-800 transition-all group">
-                    <div><h3 className="font-bold text-zinc-100 uppercase text-xs tracking-widest group-hover:text-blue-400 transition-colors">Strength Elixir</h3></div>
-                    <span className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-[10px] font-black">{Math.floor(250 * (1 - currentDiscount / 100))}g</span>
+                 <button onClick={() => buyItem('str')} className="w-full bg-zinc-950/50 p-4 rounded-2xl flex justify-between items-center border border-zinc-800 hover:border-blue-500/50 hover:bg-zinc-800 transition-all group">
+                    <div className="text-left">
+                        <h3 className="font-bold text-zinc-100 uppercase text-xs tracking-widest group-hover:text-blue-400 transition-colors">Strength Elixir</h3>
+                        <p className="text-[9px] text-zinc-500 mt-1 font-medium">Permanently increases Magic Damage by 20%.</p>
+                    </div>
+                    <span className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-[10px] font-black min-w-[60px] text-center">{Math.floor(250 * (1 - currentDiscount / 100))}g</span>
                  </button>
-                 <button onClick={() => buyItem('dmg')} className="w-full bg-zinc-950/50 p-5 rounded-2xl flex justify-between items-center border border-zinc-800 hover:border-emerald-500/50 hover:bg-zinc-800 transition-all group">
-                    <div><h3 className="font-bold text-zinc-100 uppercase text-xs tracking-widest group-hover:text-emerald-400 transition-colors">Ring of Power</h3></div>
-                    <span className="bg-emerald-600 text-black px-4 py-1.5 rounded-lg text-[10px] font-black">{Math.floor(300 * (1 - currentDiscount / 100))}g</span>
+                 <button onClick={() => buyItem('dmg')} className="w-full bg-zinc-950/50 p-4 rounded-2xl flex justify-between items-center border border-zinc-800 hover:border-emerald-500/50 hover:bg-zinc-800 transition-all group">
+                    <div className="text-left">
+                        <h3 className="font-bold text-zinc-100 uppercase text-xs tracking-widest group-hover:text-emerald-400 transition-colors">Ring of Power</h3>
+                        <p className="text-[9px] text-zinc-500 mt-1 font-medium">Permanently increases Magic Damage by 25%.</p>
+                    </div>
+                    <span className="bg-emerald-600 text-black px-4 py-1.5 rounded-lg text-[10px] font-black min-w-[60px] text-center">{Math.floor(300 * (1 - currentDiscount / 100))}g</span>
                  </button>
               </div>
 
               <div className="mt-8 pt-6 border-t border-zinc-800 flex justify-between items-center text-[10px] text-zinc-500 font-bold uppercase">
-                 <span className="bg-zinc-950 px-3 py-1 rounded-full">GOLD: {playerState.gold}g</span>
-                 <button onClick={() => setShowShop(false)} className="text-amber-500 hover:underline">Exit Trade</button>
+                 <span className="bg-zinc-950 px-3 py-1 rounded-full border border-zinc-800/50 text-amber-500">AVAILABLE: {playerState.gold}g</span>
+                 <button onClick={() => setShowShop(false)} className="text-zinc-400 hover:text-white hover:underline transition-colors">Exit Trade</button>
               </div>
            </div>
         </div>
@@ -193,9 +233,10 @@ function App() {
         <FuzzyTheoryModal type={theoryModal as any} onClose={() => setTheoryModal(null)} />
       )}
 
+      {/* Paused State with Blur */}
       {!gameActive && gameStarted && !gameOverState.isOver && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-6">
-          <div className="text-center p-12 border border-zinc-800 bg-zinc-900/40 rounded-[2.5rem] shadow-2xl max-w-md w-full">
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-zinc-950/40 backdrop-blur-[2px] p-6 transition-all duration-300">
+          <div className="text-center p-12 border border-zinc-800 bg-zinc-900/60 rounded-[2.5rem] shadow-2xl max-w-md w-full backdrop-blur-xl">
             <h1 className="text-6xl font-black mb-4 text-zinc-400 tracking-widest uppercase italic">
               Paused
             </h1>
@@ -212,6 +253,7 @@ function App() {
         </div>
       )}
 
+      {/* Start / Game Over Screen */}
       {(!gameStarted || gameOverState.isOver) && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-950/95 backdrop-blur-2xl p-6">
           <div className="text-center p-12 border border-zinc-800 bg-zinc-900/40 rounded-[2.5rem] shadow-2xl max-w-xl w-full">

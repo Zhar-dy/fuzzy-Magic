@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid } from 'recharts';
 import { triangle, trapezoid } from '../services/fuzzyLogic';
 
@@ -7,6 +7,7 @@ interface FuzzyGraphProps {
   currentValue: number;
   min: number;
   max: number;
+  info?: string;
   sets: readonly {
     readonly name: string;
     readonly color: string;
@@ -15,7 +16,8 @@ interface FuzzyGraphProps {
   }[];
 }
 
-const FuzzyGraph: React.FC<FuzzyGraphProps> = ({ title, currentValue, min, max, sets }) => {
+const FuzzyGraph: React.FC<FuzzyGraphProps> = ({ title, currentValue, min, max, sets, info }) => {
+  const [showInfo, setShowInfo] = useState(false);
   const clampedValue = Math.max(min, Math.min(max, currentValue));
 
   const data = useMemo(() => {
@@ -38,13 +40,21 @@ const FuzzyGraph: React.FC<FuzzyGraphProps> = ({ title, currentValue, min, max, 
   }, [min, max, sets]);
 
   return (
-    <div className="bg-[#0f1115] p-4 rounded-xl border border-zinc-800 shadow-xl w-full min-h-[160px] flex flex-col">
-      <div className="flex justify-between items-start mb-3">
-        <h3 className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">{title}</h3>
-        <div className="text-[10px] font-mono font-bold text-cyan-400 bg-cyan-950 px-2 py-0.5 rounded-sm border border-cyan-900/50 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
-          {currentValue.toFixed(1)}
+    <div className="bg-[#0f1115] p-4 rounded-xl border border-zinc-800 shadow-xl w-full min-h-[160px] flex flex-col relative group">
+      <div className="flex flex-col mb-3">
+        <div className="flex justify-between items-start w-full">
+            <h3 className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">{title}</h3>
+            <div className="text-[10px] font-mono font-bold text-cyan-400 bg-cyan-950 px-2 py-0.5 rounded-sm border border-cyan-900/50 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+              {currentValue.toFixed(1)}
+            </div>
         </div>
+        {info && (
+            <p className="text-[8px] text-zinc-600 mt-1 leading-tight font-medium tracking-tight border-l-2 border-zinc-800 pl-2">
+                {info}
+            </p>
+        )}
       </div>
+
       <div className="flex-1 min-h-[100px] w-full" style={{ minWidth: 0 }}>
         <ResponsiveContainer width="100%" height="100%" minHeight={100}>
           <AreaChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
@@ -72,7 +82,9 @@ const FuzzyGraph: React.FC<FuzzyGraphProps> = ({ title, currentValue, min, max, 
                 fill={set.color}
                 fillOpacity={0.05}
                 strokeWidth={3}
-                isAnimationActive={false}
+                isAnimationActive={true}
+                animationDuration={150}
+                animationEasing="ease-out"
               />
             ))}
             <ReferenceLine 
@@ -81,6 +93,8 @@ const FuzzyGraph: React.FC<FuzzyGraphProps> = ({ title, currentValue, min, max, 
               strokeWidth={2} 
               strokeDasharray="5 5"
               className="drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]"
+              isAnimationActive={true}
+              animationDuration={150}
             />
           </AreaChart>
         </ResponsiveContainer>

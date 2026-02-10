@@ -6,7 +6,8 @@ import {
   Environment, 
   Float, 
   ContactShadows,
-  Stars
+  Stars,
+  Html
 } from '@react-three/drei';
 import * as THREE from 'three';
 import { FuzzyAI } from '../services/fuzzyLogic';
@@ -177,12 +178,14 @@ const MagePlayer = ({ playerRef }: { playerRef: React.MutableRefObject<any> }) =
   );
 };
 
-const GuardianEnemy = ({ enemyId, enemyRef, position, isAttacking }: { 
-  enemyId: string, 
-  enemyRef: React.RefObject<THREE.Group>, 
-  position: [number, number, number],
-  isAttacking: boolean
-}) => {
+const GuardianEnemy: React.FC<{ 
+  enemyId: string; 
+  enemyRef: React.RefObject<THREE.Group> | null; 
+  position: [number, number, number];
+  isAttacking: boolean;
+  hp: number;
+  maxHp: number;
+}> = ({ enemyId, enemyRef, position, isAttacking, hp, maxHp }) => {
   const meshRef = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
@@ -197,8 +200,21 @@ const GuardianEnemy = ({ enemyId, enemyRef, position, isAttacking }: {
     }
   });
 
+  // Guard against null ref if initialization is lagging
+  if (!enemyRef) return null;
+
   return (
     <group ref={enemyRef} name={enemyId} position={position}>
+      {/* Health Bar */}
+      <Html position={[0, 2.2, 0]} center distanceFactor={12} zIndexRange={[100, 0]}>
+          <div className="w-16 h-1.5 bg-zinc-900/80 rounded-full border border-zinc-700 overflow-hidden backdrop-blur-sm pointer-events-none">
+            <div
+              className="h-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)] transition-all duration-300 ease-out"
+              style={{ width: `${Math.max(0, (hp / maxHp) * 100)}%` }}
+            />
+          </div>
+      </Html>
+
       <mesh ref={meshRef} position={[0, 1, 0]}>
         <boxGeometry args={[1.2, 1.2, 1.2]} />
         <meshStandardMaterial color="#cc4444" metalness={0.5} roughness={0.7} />
@@ -248,6 +264,11 @@ const GameScene: React.FC<{
 
   const spawnEnemies = useCallback(() => {
     const newEnemies: EnemyState[] = [];
+    // Reset refs first to ensure clean state
+    enemyRefs.current = {};
+    aiInstances.current = {};
+    enemyAttackCooldowns.current = {};
+
     for (let i = 0; i < 2; i++) {
         const id = `golem_${Date.now()}_${i}`;
         const angle = Math.random() * Math.PI * 2;
@@ -255,6 +276,7 @@ const GameScene: React.FC<{
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
         newEnemies.push({ id, position: { x, y: 0, z }, hp: 50, maxHp: 50, energy: 100, color: '#ef4444' });
+        
         enemyRefs.current[id] = React.createRef<THREE.Group>();
         aiInstances.current[id] = new FuzzyAI();
         enemyAttackCooldowns.current[id] = 0;
@@ -536,11 +558,12 @@ const GameScene: React.FC<{
         <GuardianEnemy 
           key={e.id} 
           enemyId={e.id} 
-          // FIX: Replaced `as any` with a non-null assertion `!` to resolve the type error.
-          // The application logic guarantees that if an enemy `e` exists, `enemyRefs.current[e.id]` will also exist.
-          enemyRef={enemyRefs.current[e.id]!} 
+          // FIX: Pass nullsafe ref access to avoid crashes if refs aren't ready
+          enemyRef={enemyRefs.current[e.id] || null} 
           position={[e.position.x, 0, e.position.z]}
           isAttacking={enemyVisualStates[e.id]?.isAttacking || false}
+          hp={e.hp}
+          maxHp={e.maxHp}
         />
       ))}
 
