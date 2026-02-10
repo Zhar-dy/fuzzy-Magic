@@ -1,3 +1,4 @@
+
 export interface Vector3 {
   x: number;
   y: number;
@@ -12,12 +13,17 @@ export interface PlayerState {
   maxMagicCd: number;
   recentAttacks: number;
   isAttacking: boolean;
+  gold: number;
+  totalGoldSpent: number;
+  damageMultiplier: number;
 }
 
 export interface EnemyState {
+  id: string;
   position: Vector3;
   hp: number;
   maxHp: number;
+  energy: number;
   color: string;
 }
 
@@ -28,6 +34,7 @@ export interface FuzzyMetrics {
   playerAggro: number;
   playerMagic: number;
   hazardProximity: number;
+  energyPct: number;
   aggressionOutput: number;
   stateDescription: string;
   fuzzyDist: { close: number; medium: number; far: number };
@@ -36,6 +43,7 @@ export interface FuzzyMetrics {
   fuzzyAggro: { calm: number; fight: number; spamming: number };
   fuzzyMagic: { armed: number; recharging: number; spent: number };
   fuzzyHazard: { inDanger: number; safe: number };
+  fuzzyEnergy: { empty: number; low: number; full: number };
   fuzzyAggression: { passive: number; neutral: number; aggressive: number };
 }
 

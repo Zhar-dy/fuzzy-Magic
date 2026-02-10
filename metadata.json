@@ -1,5 +1,5 @@
 {
-  "name": "Copy of Fuzzy Guardian 3Dlatest",
+  "name": "Fuzzy RPG",
   "description": "A 3D RPG implementation of a Fuzzy Logic battle system. Visualizes AI decision making in real-time using Recharts and Three.js.",
   "requestFramePermissions": []
 }

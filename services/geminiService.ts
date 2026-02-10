@@ -1,7 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 // Circuit breaker: If true, we stop calling the API to prevent console errors
 let isQuotaExceeded = false;
 
@@ -32,6 +30,7 @@ export const generateEnemyBanter = async (state: string, playerHp: number, enemy
   `;
 
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
