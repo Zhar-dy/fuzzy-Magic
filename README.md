@@ -3,7 +3,7 @@
 </div>
 
 # Run and deploy your AI Studio app
-
+(this app fully code with vibe coding for university group project)
 This contains everything you need to run your app locally.
 
 View your app in AI Studio: https://ai.studio/apps/drive/1_G0z9-8F84zsefFdy1Wi-Gm74jpP3_VA
