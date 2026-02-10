@@ -1,7 +1,6 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { 
-  Sky, 
   Sparkles, 
   Torus, 
   Environment, 
@@ -202,7 +201,6 @@ const GuardianEnemy = ({ enemyId, enemyRef, position, isAttacking }: {
     <group ref={enemyRef} name={enemyId} position={position}>
       <mesh ref={meshRef} position={[0, 1, 0]}>
         <boxGeometry args={[1.2, 1.2, 1.2]} />
-        {/* Soft Red Body */}
         <meshStandardMaterial color="#cc4444" metalness={0.5} roughness={0.7} />
       </mesh>
       <mesh position={[0, 1, 0.4]}>
@@ -220,8 +218,8 @@ const GameScene: React.FC<{
 }> = ({ onMetricsUpdate, onLog, onStatsUpdate, gameActive, onGameOver, playerStateExt, onOpenShop }) => {
   const playerRef = useRef({ 
     ...playerStateExt, 
-    x: 0, 
-    z: 5, 
+    x: playerStateExt.position.x, 
+    z: playerStateExt.position.z, 
     isAttacking: false, 
     attackTimer: 0,
     isDodging: false,
@@ -248,7 +246,7 @@ const GameScene: React.FC<{
   const [projectiles, setProjectiles] = useState<any[]>([]);
   const playerMesh = useRef<THREE.Group>(null);
 
-  const spawnEnemies = () => {
+  const spawnEnemies = useCallback(() => {
     const newEnemies: EnemyState[] = [];
     for (let i = 0; i < 2; i++) {
         const id = `golem_${Date.now()}_${i}`;
@@ -263,17 +261,78 @@ const GameScene: React.FC<{
     }
     setEnemies(newEnemies);
     onLog("The stone giants awaken. Steel your heart.", "info");
-  };
+  }, [onLog]);
 
   useEffect(() => {
     if (gameActive && enemies.length === 0) spawnEnemies();
-  }, [gameActive, enemies.length]);
+  }, [gameActive, enemies.length, spawnEnemies]);
 
+  // Ensure gold in playerRef stays in sync with App state gold if it changes from outside
   useEffect(() => {
     playerRef.current.gold = playerStateExt.gold;
     playerRef.current.damageMultiplier = playerStateExt.damageMultiplier;
     playerRef.current.hp = playerStateExt.hp;
   }, [playerStateExt]);
+
+  const handleEnemyDamage = useCallback((enemyId: string, dmg: number) => {
+    setEnemies(prev => {
+        const target = prev.find(e => e.id === enemyId);
+        if (!target) return prev;
+        const newHp = Math.max(0, target.hp - dmg);
+        if (newHp <= 0) {
+            onLog(`The golem shatters. Golden coins remain.`, "combat");
+            playerRef.current.gold += 100; // FIX: Ensure gold is added to ref immediately
+            delete enemyRefs.current[enemyId];
+            delete aiInstances.current[enemyId];
+            delete enemyAttackCooldowns.current[enemyId];
+            return prev.filter(e => e.id !== enemyId);
+        }
+        return prev.map(e => e.id === enemyId ? { ...e, hp: newHp } : e);
+    });
+  }, [onLog]);
+
+  const performAttack = useCallback(() => {
+    if (!gameActive || playerRef.current.isAttacking) return;
+    playerRef.current.isAttacking = true; 
+    playerRef.current.attackTimer = 20;
+    enemies.forEach(e => {
+        const distSq = (e.position.x - playerRef.current.x)**2 + (e.position.z - playerRef.current.z)**2;
+        if (distSq < 16) handleEnemyDamage(e.id, 12 * playerRef.current.damageMultiplier);
+    });
+  }, [gameActive, enemies, handleEnemyDamage]);
+
+  const performDodge = useCallback(() => {
+      if (!gameActive || playerRef.current.dodgeTimer > 0) return;
+      playerRef.current.isDodging = true;
+      playerRef.current.dodgeTimer = 30;
+  }, [gameActive]);
+
+  const performHeal = useCallback(() => {
+      if (!gameActive || playerRef.current.healTimer > 0) return;
+      playerRef.current.isHealing = true;
+      playerRef.current.healTimer = 120;
+      onLog("Channeling restorative energy...", "info");
+  }, [gameActive, onLog]);
+
+  const spawnPlayerProjectile = useCallback(() => {
+    if (!gameActive || playerRef.current.magicCd > 0) return;
+    playerRef.current.magicCd = 60;
+    const dir = new THREE.Vector3().subVectors(mousePosRef.current, new THREE.Vector3(playerRef.current.x, 0, playerRef.current.z)).normalize();
+    setProjectiles(prev => [...prev, { 
+        id: Date.now() + Math.random(),
+        x: playerRef.current.x, z: playerRef.current.z, 
+        vx: dir.x * 0.6, vz: dir.z * 0.6, color: "#06b6d4" 
+    }]);
+  }, [gameActive]);
+
+  const handleContextKey = useCallback(() => {
+    const distSq = playerRef.current.x**2 + playerRef.current.z**2;
+    if (distSq < MERCHANT_INTERACT_RADIUS**2) {
+      onOpenShop();
+    } else {
+      spawnPlayerProjectile();
+    }
+  }, [onOpenShop, spawnPlayerProjectile]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => { 
@@ -293,29 +352,7 @@ const GameScene: React.FC<{
         window.removeEventListener('keydown', handleKeyDown);
         window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [gameActive, enemies]);
-
-  const performDodge = () => {
-      if (!gameActive || playerRef.current.dodgeTimer > 0) return;
-      playerRef.current.isDodging = true;
-      playerRef.current.dodgeTimer = 30;
-  };
-
-  const performHeal = () => {
-      if (!gameActive || playerRef.current.healTimer > 0) return;
-      playerRef.current.isHealing = true;
-      playerRef.current.healTimer = 120;
-      onLog("Channeling restorative energy...", "info");
-  };
-
-  const handleContextKey = () => {
-    const distSq = playerRef.current.x**2 + playerRef.current.z**2;
-    if (distSq < MERCHANT_INTERACT_RADIUS**2) {
-      onOpenShop();
-    } else {
-      spawnPlayerProjectile();
-    }
-  };
+  }, [performAttack, handleContextKey, performDodge, performHeal]);
 
   const triggerDamageFlash = () => {
     playerRef.current.flashTimer = 20;
@@ -323,44 +360,6 @@ const GameScene: React.FC<{
     setTimeout(() => {
         setEffects(prev => prev.slice(1));
     }, 800);
-  };
-
-  const performAttack = () => {
-    if (!gameActive || playerRef.current.isAttacking) return;
-    playerRef.current.isAttacking = true; 
-    playerRef.current.attackTimer = 20;
-    enemies.forEach(e => {
-        const distSq = (e.position.x - playerRef.current.x)**2 + (e.position.z - playerRef.current.z)**2;
-        if (distSq < 16) handleEnemyDamage(e.id, 12 * playerRef.current.damageMultiplier);
-    });
-  };
-
-  const handleEnemyDamage = (enemyId: string, dmg: number) => {
-    setEnemies(prev => {
-        const target = prev.find(e => e.id === enemyId);
-        if (!target) return prev;
-        const newHp = Math.max(0, target.hp - dmg);
-        if (newHp <= 0) {
-            onLog(`The golem shatters. Golden coins remain.`, "combat");
-            playerRef.current.gold += 100;
-            delete enemyRefs.current[enemyId];
-            delete aiInstances.current[enemyId];
-            delete enemyAttackCooldowns.current[enemyId];
-            return prev.filter(e => e.id !== enemyId);
-        }
-        return prev.map(e => e.id === enemyId ? { ...e, hp: newHp } : e);
-    });
-  };
-
-  const spawnPlayerProjectile = () => {
-    if (!gameActive || playerRef.current.magicCd > 0) return;
-    playerRef.current.magicCd = 60;
-    const dir = new THREE.Vector3().subVectors(mousePosRef.current, new THREE.Vector3(playerRef.current.x, 0, playerRef.current.z)).normalize();
-    setProjectiles(prev => [...prev, { 
-        id: Date.now() + Math.random(),
-        x: playerRef.current.x, z: playerRef.current.z, 
-        vx: dir.x * 0.6, vz: dir.z * 0.6, color: "#06b6d4" 
-    }]);
   };
 
   useFrame((state) => {
@@ -404,88 +403,87 @@ const GameScene: React.FC<{
     const pDistSq = p.x*p.x + p.z*p.z;
     const isPlayerSafe = pDistSq < SAFE_ZONE_RADIUS**2;
 
-    let primaryMetrics: FuzzyMetrics | null = null;
+    // FIX: Calculate AI metrics before batched enemy state update to prevent empty graph at start
+    let frameMetrics: FuzzyMetrics | null = null;
     const nextVisualStates: Record<string, { isAttacking: boolean }> = {};
+    const nextEnemies = enemies.map(e => {
+        const ai = aiInstances.current[e.id];
+        if (!ai) return e;
 
-    setEnemies(prev => {
-        return prev.map(e => {
-            const ai = aiInstances.current[e.id];
-            if (!ai) return e;
+        const dx = p.x - e.position.x;
+        const dz = p.z - e.position.z;
+        const dist = Math.sqrt(dx*dx + dz*dz);
+        
+        const metrics = ai.evaluate(
+            Math.min(dist, 30), 
+            (e.hp / 50) * 100, 
+            p.hp, 
+            p.magicCd, 
+            10, 
+            e.energy,
+            p.isDodging,
+            p.isDefending,
+            p.isHealing
+        );
+        if (!frameMetrics) frameMetrics = metrics;
 
-            const dx = p.x - e.position.x;
-            const dz = p.z - e.position.z;
-            const dist = Math.sqrt(dx*dx + dz*dz);
+        const newPos = { ...e.position };
+        const dCenterSq = newPos.x*newPos.x + newPos.z*newPos.z;
+
+        const separation = new THREE.Vector3(0,0,0);
+        enemies.forEach(other => { 
+            if (other.id === e.id) return;
+            const dEnemyDistSq = (e.position.x - other.position.x)**2 + (e.position.z - other.position.z)**2;
+            if (dEnemyDistSq < 4) {
+                separation.x += ((e.position.x - other.position.x) / dEnemyDistSq) * ENEMY_SEPARATION_STRENGTH;
+                separation.z += ((e.position.z - other.position.z) / dEnemyDistSq) * ENEMY_SEPARATION_STRENGTH;
+            }
+        });
+
+        if (dCenterSq < (SAFE_ZONE_RADIUS + 0.2)**2) {
+            const pushDir = new THREE.Vector2(newPos.x, newPos.z).normalize();
+            newPos.x = pushDir.x * (SAFE_ZONE_RADIUS + 0.5);
+            newPos.z = pushDir.y * (SAFE_ZONE_RADIUS + 0.5);
+        } else if (!isPlayerSafe) {
+            const angle = Math.atan2(dz, dx);
+            const finalSpeed = 0.012 + Math.max(0, (metrics.aggressionOutput - 20) * 0.003);
+            const cooldown = enemyAttackCooldowns.current[e.id] || 0;
             
-            const metrics = ai.evaluate(
-                Math.min(dist, 30), 
-                (e.hp / 50) * 100, 
-                p.hp, 
-                p.magicCd, 
-                10, 
-                e.energy,
-                p.isDodging,
-                p.isDefending,
-                p.isHealing
-            );
-            if (!primaryMetrics) primaryMetrics = metrics;
-
-            const newPos = { ...e.position };
-            const dCenterSq = newPos.x*newPos.x + newPos.z*newPos.z;
-
-            const separation = new THREE.Vector3(0,0,0);
-            prev.forEach(other => {
-                if (other.id === e.id) return;
-                const dEnemyDistSq = (e.position.x - other.position.x)**2 + (e.position.z - other.position.z)**2;
-                if (dEnemyDistSq < 4) {
-                    separation.x += ((e.position.x - other.position.x) / dEnemyDistSq) * ENEMY_SEPARATION_STRENGTH;
-                    separation.z += ((e.position.z - other.position.z) / dEnemyDistSq) * ENEMY_SEPARATION_STRENGTH;
-                }
-            });
-
-            if (dCenterSq < (SAFE_ZONE_RADIUS + 0.2)**2) {
-                const pushDir = new THREE.Vector2(newPos.x, newPos.z).normalize();
-                newPos.x = pushDir.x * (SAFE_ZONE_RADIUS + 0.5);
-                newPos.z = pushDir.y * (SAFE_ZONE_RADIUS + 0.5);
-            } else if (!isPlayerSafe) {
-                const angle = Math.atan2(dz, dx);
-                const finalSpeed = 0.012 + Math.max(0, (metrics.aggressionOutput - 20) * 0.003);
-                const cooldown = enemyAttackCooldowns.current[e.id] || 0;
+            if (dist < 3.2 && metrics.aggressionOutput > 40 && cooldown <= 0) {
+                nextVisualStates[e.id] = { isAttacking: true };
+                enemyAttackCooldowns.current[e.id] = 120;
                 
-                if (dist < 3.2 && metrics.aggressionOutput > 40 && cooldown <= 0) {
-                    nextVisualStates[e.id] = { isAttacking: true };
-                    enemyAttackCooldowns.current[e.id] = 120;
-                    
-                    let damage = 10;
-                    if (p.isDefending) damage *= 0.2;
-                    if (p.isHealing) damage *= 1.5;
-                    if (p.isDodging) damage = 0;
+                let damage = 10;
+                if (p.isDefending) damage *= 0.2;
+                if (p.isHealing) damage *= 1.5;
+                if (p.isDodging) damage = 0;
 
-                    if (damage > 0) {
-                      p.hp -= damage;
-                      triggerDamageFlash();
-                      onLog(`Integrity compromised! -${Math.floor(damage)} Vitality`, 'combat');
-                    }
-                    newPos.x = THREE.MathUtils.lerp(newPos.x, p.x, 0.2);
-                    newPos.z = THREE.MathUtils.lerp(newPos.z, p.z, 0.2);
-                } else if (dist > ENEMY_STOP_DISTANCE) {
-                    newPos.x += Math.cos(angle) * finalSpeed;
-                    newPos.z += Math.sin(angle) * finalSpeed;
-                    nextVisualStates[e.id] = { isAttacking: false };
-                } else {
-                    nextVisualStates[e.id] = { isAttacking: false };
+                if (damage > 0) {
+                  p.hp -= damage;
+                  triggerDamageFlash();
+                  onLog(`Integrity compromised! -${Math.floor(damage)} Vitality`, 'combat');
                 }
-                if (enemyAttackCooldowns.current[e.id] > 0) enemyAttackCooldowns.current[e.id]--;
+                newPos.x = THREE.MathUtils.lerp(newPos.x, p.x, 0.2);
+                newPos.z = THREE.MathUtils.lerp(newPos.z, p.z, 0.2);
+            } else if (dist > ENEMY_STOP_DISTANCE) {
+                newPos.x += Math.cos(angle) * finalSpeed;
+                newPos.z += Math.sin(angle) * finalSpeed;
+                nextVisualStates[e.id] = { isAttacking: false };
             } else {
-                newPos.x += (Math.random() - 0.5) * 0.02;
-                newPos.z += (Math.random() - 0.5) * 0.02;
                 nextVisualStates[e.id] = { isAttacking: false };
             }
-            newPos.x += separation.x;
-            newPos.z += separation.z;
-            return { ...e, position: newPos, energy: Math.min(100, e.energy + 0.2) };
-        });
+            if (enemyAttackCooldowns.current[e.id] > 0) enemyAttackCooldowns.current[e.id]--;
+        } else {
+            newPos.x += (Math.random() - 0.5) * 0.02;
+            newPos.z += (Math.random() - 0.5) * 0.02;
+            nextVisualStates[e.id] = { isAttacking: false };
+        }
+        newPos.x += separation.x;
+        newPos.z += separation.z;
+        return { ...e, position: newPos, energy: Math.min(100, e.energy + 0.2) };
     });
 
+    setEnemies(nextEnemies);
     setEnemyVisualStates(nextVisualStates);
 
     if (playerMesh.current) {
@@ -501,8 +499,9 @@ const GameScene: React.FC<{
 
     throttleCounter.current++;
     if (throttleCounter.current % 10 === 0) {
-        if (primaryMetrics) onMetricsUpdate(primaryMetrics);
-        onStatsUpdate({ ...p, position: { x: p.x, y: 0, z: p.z } }, enemies);
+        if (frameMetrics) onMetricsUpdate(frameMetrics);
+        // FIX: Ensure the gold being sent back is the latest value from playerRef
+        onStatsUpdate({ ...p, position: { x: p.x, y: 0, z: p.z } }, nextEnemies);
     }
   });
 
@@ -515,7 +514,6 @@ const GameScene: React.FC<{
       <ambientLight intensity={0.15} />
       <directionalLight position={[10, 20, 10]} intensity={1.5} color="#06b6d4" castShadow />
       
-      {/* Refined Floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <planeGeometry args={[150, 150]} />
           <meshStandardMaterial color="#0c0c0e" roughness={0.8} />
@@ -523,7 +521,6 @@ const GameScene: React.FC<{
       
       <Stars radius={100} depth={50} count={3000} factor={4} saturation={0} fade speed={1} />
       
-      {/* Refined Sanctuary Ward */}
       <Torus args={[SAFE_ZONE_RADIUS, 0.05, 16, 128]} rotation={[Math.PI/2, 0, 0]} position={[0, 0.05, 0]}>
         <meshStandardMaterial color="#06b6d4" emissive="#06b6d4" emissiveIntensity={4} transparent opacity={0.6} />
       </Torus>
@@ -539,7 +536,9 @@ const GameScene: React.FC<{
         <GuardianEnemy 
           key={e.id} 
           enemyId={e.id} 
-          enemyRef={enemyRefs.current[e.id] as any} 
+          // FIX: Replaced `as any` with a non-null assertion `!` to resolve the type error.
+          // The application logic guarantees that if an enemy `e` exists, `enemyRefs.current[e.id]` will also exist.
+          enemyRef={enemyRefs.current[e.id]!} 
           position={[e.position.x, 0, e.position.z]}
           isAttacking={enemyVisualStates[e.id]?.isAttacking || false}
         />

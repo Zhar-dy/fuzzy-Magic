@@ -38,15 +38,15 @@ const FuzzyGraph: React.FC<FuzzyGraphProps> = ({ title, currentValue, min, max, 
   }, [min, max, sets]);
 
   return (
-    <div className="bg-[#0f1115] p-4 rounded-xl border border-zinc-800 shadow-xl">
+    <div className="bg-[#0f1115] p-4 rounded-xl border border-zinc-800 shadow-xl w-full min-h-[160px] flex flex-col">
       <div className="flex justify-between items-start mb-3">
         <h3 className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">{title}</h3>
         <div className="text-[10px] font-mono font-bold text-cyan-400 bg-cyan-950 px-2 py-0.5 rounded-sm border border-cyan-900/50 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
           {currentValue.toFixed(1)}
         </div>
       </div>
-      <div className="h-28 w-full">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="flex-1 min-h-[100px] w-full" style={{ minWidth: 0 }}>
+        <ResponsiveContainer width="100%" height="100%" minHeight={100}>
           <AreaChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="4 4" stroke="#18181b" vertical={false} />
             <XAxis 

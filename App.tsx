@@ -16,6 +16,7 @@ const INITIAL_PLAYER_STATE: PlayerState = {
 
 function App() {
   const [gameActive, setGameActive] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false);
   const [gameOverState, setGameOverState] = useState<{isOver: boolean, won: boolean}>({ isOver: false, won: false });
   const [sessionKey, setSessionKey] = useState(0); 
   const [showShop, setShowShop] = useState(false);
@@ -39,10 +40,9 @@ function App() {
 
   const handleStatsUpdate = useCallback((p: PlayerState, eList: EnemyState[]) => {
     setPlayerState(prev => ({ 
-        ...p, 
-        gold: prev.gold, 
-        totalGoldSpent: prev.totalGoldSpent, 
-        damageMultiplier: prev.damageMultiplier 
+        ...prev, 
+        ...p,
+        gold: p.gold 
     })); 
     setEnemies(eList);
   }, []);
@@ -62,6 +62,13 @@ function App() {
       setGameActive(true);
       setShowShop(false);
       setPlayerState(INITIAL_PLAYER_STATE);
+      setGameStarted(true);
+  };
+
+  const handleReset = () => {
+    if (window.confirm("Are you sure you want to restart the simulation? All progress will be lost.")) {
+      startGame();
+    }
   };
 
   const buyItem = (type: 'hp' | 'str' | 'dmg') => {
@@ -103,6 +110,22 @@ function App() {
          <UIOverlay player={playerState} enemies={enemies} logs={logs} />
          
          <div className="absolute top-6 right-6 pointer-events-auto flex items-center gap-4">
+            {gameStarted && !gameOverState.isOver && (
+              <button
+                onClick={() => setGameActive(!gameActive)}
+                className="bg-zinc-900/90 hover:bg-zinc-800 text-zinc-100 font-bold text-[10px] px-4 py-2.5 rounded-xl uppercase tracking-widest shadow-xl border border-zinc-800 transition-all backdrop-blur-xl"
+              >
+                {gameActive ? 'Pause' : 'Resume'}
+              </button>
+            )}
+            {gameStarted && (
+              <button
+                onClick={handleReset}
+                className="bg-rose-900/90 hover:bg-rose-800 text-zinc-100 font-bold text-[10px] px-4 py-2.5 rounded-xl uppercase tracking-widest shadow-xl border border-rose-800 transition-all backdrop-blur-xl"
+              >
+                Reset
+              </button>
+            )}
             <button 
               onClick={() => setIsDashboardVisible(!isDashboardVisible)}
               className="bg-zinc-900/90 hover:bg-zinc-800 text-zinc-100 font-bold text-[10px] px-4 py-2.5 rounded-xl uppercase tracking-widest shadow-xl border border-zinc-800 transition-all backdrop-blur-xl"
@@ -160,7 +183,6 @@ function App() {
         </div>
       )}
 
-      {/* Decision Matrix Dashboard on the Left */}
       {isDashboardVisible && (
         <div className="absolute inset-y-0 left-0 z-20 pointer-events-auto">
             <FuzzyDashboard metrics={metrics} />
@@ -171,7 +193,26 @@ function App() {
         <FuzzyTheoryModal type={theoryModal as any} onClose={() => setTheoryModal(null)} />
       )}
 
-      {!gameActive && (
+      {!gameActive && gameStarted && !gameOverState.isOver && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-6">
+          <div className="text-center p-12 border border-zinc-800 bg-zinc-900/40 rounded-[2.5rem] shadow-2xl max-w-md w-full">
+            <h1 className="text-6xl font-black mb-4 text-zinc-400 tracking-widest uppercase italic">
+              Paused
+            </h1>
+            <p className="text-zinc-500 mb-10 text-[10px] uppercase tracking-[0.4em] font-black">
+              SIMULATION HALTED
+            </p>
+            <button
+              onClick={() => setGameActive(true)}
+              className="w-full py-5 bg-zinc-100 text-zinc-950 font-black text-xl rounded-2xl hover:bg-white hover:scale-[1.02] transition-all shadow-xl active:scale-[0.98] uppercase tracking-widest"
+            >
+              Resume Simulation
+            </button>
+          </div>
+        </div>
+      )}
+
+      {(!gameStarted || gameOverState.isOver) && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-950/95 backdrop-blur-2xl p-6">
           <div className="text-center p-12 border border-zinc-800 bg-zinc-900/40 rounded-[2.5rem] shadow-2xl max-w-xl w-full">
             <h1 className="text-6xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-br from-amber-400 via-blue-500 to-emerald-600 tracking-tighter italic uppercase">
@@ -184,7 +225,7 @@ function App() {
               onClick={startGame}
               className="w-full py-5 bg-zinc-100 text-zinc-950 font-black text-xl rounded-2xl hover:bg-white hover:scale-[1.02] transition-all shadow-xl active:scale-[0.98] uppercase tracking-widest"
             >
-              Initialize Hero
+              {gameOverState.isOver ? 'Restart Simulation' : 'Initialize Hero'}
             </button>
             <p className="mt-8 text-[9px] text-zinc-600 font-mono tracking-widest uppercase italic">The Logic Engine Awaits Your Command</p>
           </div>

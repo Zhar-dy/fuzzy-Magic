@@ -63,7 +63,8 @@ const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({ metrics }) => {
         <div className="bg-[#0f1115] p-4 rounded-xl border border-zinc-800 shadow-inner">
           <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Tactical Stance</h3>
           <div className="grid grid-cols-4 gap-3">
-              {Object.entries(metrics.playerStance).map(([key, val]) => (
+              {/* FIX: Explicitly type `val` as `number` because `Object.entries` can infer `unknown` for values. */}
+              {Object.entries(metrics.playerStance).map(([key, val]: [string, number]) => (
                   <div key={key} className="flex flex-col items-center">
                       <div className="h-12 w-2.5 bg-zinc-950 rounded-full relative overflow-hidden border border-zinc-800">
                           <div 
