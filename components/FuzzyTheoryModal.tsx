@@ -39,7 +39,7 @@ const FuzzyTheoryModal: React.FC<FuzzyTheoryModalProps> = ({ type, onClose }) =>
                 <section className="bg-gray-900/40 p-4 rounded-xl border border-gray-800/50">
                   <h3 className="text-[10px] font-black text-cyan-500 uppercase mb-3 tracking-widest">1. Knowledge Base</h3>
                   <p className="text-[11px] text-gray-400 leading-relaxed font-mono">
-                    Stores the tactical rules and linguistic membership functions (Distance, HP, Magic State). 
+                    Stores the tactical rules and linguistic membership functions (Distance, HP, Magic State, and <b>Spatial Hazards</b>). 
                     Knowledge was acquired through observation of RPG player "kiting" behaviors.
                   </p>
                 </section>
@@ -55,8 +55,8 @@ const FuzzyTheoryModal: React.FC<FuzzyTheoryModalProps> = ({ type, onClose }) =>
                 <section className="bg-gray-900/40 p-4 rounded-xl border border-gray-800/50">
                   <h3 className="text-[10px] font-black text-purple-500 uppercase mb-3 tracking-widest">3. Inference Engine</h3>
                   <p className="text-[11px] text-gray-400 leading-relaxed font-mono">
-                    Evaluates rules using Mamdani Inference. For each rule, it uses the <b>MIN</b> operator (AND) to find the 
-                    firing strength of the premise.
+                    Evaluates rules using Mamdani Inference. Complex triggers like <b>"Final Stand"</b> are identified when multiple 
+                    critical health premises are met simultaneously.
                   </p>
                 </section>
 
@@ -76,14 +76,13 @@ const FuzzyTheoryModal: React.FC<FuzzyTheoryModalProps> = ({ type, onClose }) =>
                 </h3>
                 <p className="text-[11px] text-gray-400 leading-relaxed font-mono">
                   Converts the aggregated fuzzy set back into a Crisp action value (Aggression: 0-100). 
-                  Our system uses a <b>Weighted Average Centroid Method</b> to calculate the center of mass 
-                  for the resulting behavioral profile.
+                  High aggression forces the AI to "Close Gap" during Pressure tactics.
                 </p>
               </section>
 
               <div className="p-4 border border-dashed border-gray-700 rounded-xl text-center">
-                 <p className="text-[9px] text-gray-500 font-mono tracking-tighter">
-                   SYSTEM TYPE: MAMDANI-STYLE FUZZY CONTROLLER // RESOLUTION: 64-BIT PRECISION
+                 <p className="text-[9px] text-gray-500 font-mono tracking-tighter uppercase">
+                   SYSTEM TYPE: MAMDANI-STYLE FUZZY CONTROLLER // TRIPLE-INPUT SITUATIONAL AWARENESS
                  </p>
               </div>
             </div>

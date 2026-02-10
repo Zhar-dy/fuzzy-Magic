@@ -13,10 +13,12 @@ const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({ metrics, enemy }) => {
   return (
     <div className="absolute right-4 top-4 bottom-4 w-80 bg-black/80 backdrop-blur-md border-l border-gray-700 p-4 flex flex-col gap-4 overflow-y-auto rounded-xl pointer-events-auto">
       <div className="border-b border-gray-600 pb-2">
-        <h2 className="text-xl font-bold text-white tracking-tighter">FUZZY AI BRAIN</h2>
+        <h2 className="text-xl font-bold text-white tracking-tighter uppercase italic">Fuzzy AI Brain</h2>
         <div className="flex items-center gap-2 mt-1">
             <span className="text-[10px] text-gray-500 font-bold uppercase">Decision State:</span>
             <span className={`text-xs font-black px-2 py-0.5 rounded shadow-sm transition-colors duration-500 ${
+                metrics.stateDescription === 'FINAL STAND' ? 'bg-indigo-600 text-white animate-pulse' :
+                metrics.stateDescription === 'CORNERED' ? 'bg-gray-600 text-white' :
                 metrics.stateDescription === 'BERSERK' ? 'bg-purple-600 text-white animate-pulse' :
                 metrics.stateDescription === 'RUTHLESS' ? 'bg-red-600 text-white' :
                 metrics.stateDescription === 'AGGRESSIVE' ? 'bg-orange-600 text-white' :
@@ -40,8 +42,8 @@ const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({ metrics, enemy }) => {
       />
 
       <FuzzyGraph 
-        title="Input: Enemy HP %" 
-        currentValue={metrics.healthPct} 
+        title="Input: Player HP %" 
+        currentValue={metrics.playerHealthPct} 
         min={0} 
         max={100}
         sets={[
@@ -52,19 +54,18 @@ const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({ metrics, enemy }) => {
       />
 
       <FuzzyGraph 
-        title="Input: Player Magic" 
-        currentValue={metrics.playerMagic} 
+        title="Input: Hazard Dist" 
+        currentValue={metrics.hazardProximity} 
         min={0} 
-        max={120}
+        max={15}
         sets={[
-            { name: "Armed", color: "#22c55e", type: "trapezoid", params: [-1, 0, 10, 30] },
-            { name: "Recharging", color: "#eab308", type: "triangle", params: [20, 60, 100] },
-            { name: "Spent", color: "#ef4444", type: "trapezoid", params: [80, 110, 120, 121] }
+            { name: "InDanger", color: "#ef4444", type: "trapezoid", params: [-1, 0, 3, 5] },
+            { name: "Safe", color: "#10b981", type: "trapezoid", params: [4, 6, 100, 100] }
         ]}
       />
 
       <FuzzyGraph 
-        title="Output: Aggression Score" 
+        title="Output: Aggression" 
         currentValue={metrics.aggressionOutput} 
         min={0} 
         max={100}
@@ -77,7 +78,7 @@ const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({ metrics, enemy }) => {
 
       <div className="mt-auto pt-4 border-t border-gray-800">
         <div className="flex justify-between items-center text-[10px] text-gray-500 uppercase font-bold tracking-widest">
-            <span>Decision Core</span>
+            <span>Decision Core v2.0</span>
             <span className="text-cyan-500 animate-pulse text-[8px]">● Live Feed</span>
         </div>
       </div>

@@ -266,19 +266,23 @@ const GameScene: React.FC<{ onMetricsUpdate: any, onLog: any, onStatsUpdate: any
     if (p.attackTimer > 0) p.attackTimer--; else p.isAttacking = false;
     if (p.magicCd > 0) p.magicCd--;
 
-    // Hazard Collisions
+    // Hazard Collisions & Nearest Distance Calculation
+    let nearestHazardDist = 100;
     hazards.forEach(h => {
       const dist = Math.sqrt((p.x - h.x) ** 2 + (p.z - h.z) ** 2);
+      const eDist = Math.sqrt((e.x - h.x) ** 2 + (e.z - h.z) ** 2);
+      if (eDist < nearestHazardDist) nearestHazardDist = eDist;
+
       if (dist < 1.2) {
         if (h.type === 'bush') p.hp -= 0.15;
-        if (h.type === 'shroom') p.hp -= 0.05; // Shrooms also slow?
+        if (h.type === 'shroom') p.hp -= 0.05;
       }
     });
     if (p.hp <= 0) onGameOver(false);
 
     // AI Fuzzy Brain
     const distToPlayer = Math.sqrt((p.x - e.x) ** 2 + (p.z - e.z) ** 2);
-    const metrics = aiRef.current.evaluate(distToPlayer, (e.hp / e.maxHp) * 100, p.recentAttacks, p.magicCd);
+    const metrics = aiRef.current.evaluate(distToPlayer, (e.hp / e.maxHp) * 100, p.hp, p.recentAttacks, p.magicCd, nearestHazardDist);
 
     // AI Movement Logic
     const angleToPlayer = Math.atan2(p.z - e.z, p.x - e.x);
@@ -290,6 +294,12 @@ const GameScene: React.FC<{ onMetricsUpdate: any, onLog: any, onStatsUpdate: any
     let tx = Math.cos(angleToPlayer) * speed;
     let tz = Math.sin(angleToPlayer) * speed;
 
+    // Tactical Retreat if "CORNERED"
+    if (metrics.stateDescription === "CORNERED") {
+        tx = -Math.cos(angleToPlayer) * 0.05;
+        tz = -Math.sin(angleToPlayer) * 0.05;
+    }
+
     // Strafe if player is armed (TacticalFear)
     if (metrics.fuzzyMagic.armed > 0.5) {
       const strafeAngle = angleToPlayer + Math.PI / 2;
@@ -297,7 +307,7 @@ const GameScene: React.FC<{ onMetricsUpdate: any, onLog: any, onStatsUpdate: any
       tz += Math.sin(strafeAngle) * 0.04;
     }
 
-    // Hazard Avoidance
+    // Hazard Avoidance (Base Physics repulsion)
     hazards.forEach(h => {
       const dx = e.x - h.x;
       const dz = e.z - h.z;
