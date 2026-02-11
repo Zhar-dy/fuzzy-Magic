@@ -395,6 +395,9 @@ const GameScene: React.FC<{
   const deadEnemiesRef = useRef(new Set<string>());
   // Velocity Ref for smoothing
   const enemyVelocities = useRef<Record<string, THREE.Vector3>>({});
+  
+  // New Ref to prevent double-spawning or round skipping on pause
+  const isSpawning = useRef(false);
 
   const throttleCounter = useRef(0);
   const mousePosRef = useRef(new THREE.Vector3());
@@ -462,16 +465,26 @@ const GameScene: React.FC<{
         // Reset Round & Enemies (but don't spawn yet, wait for auto-spawn effect)
         roundRef.current = 0;
         setEnemies([]);
+        isSpawning.current = false; // Fix: Ensure lock is cleared on reset
     }
   }, [resetSignal]);
 
   // Handle Round/Wave Logic (Spawns next wave when enemies are cleared)
   useEffect(() => {
-    if (gameActive && enemies.length === 0) {
+    // Only trigger if game is active, no enemies exist, AND we aren't already in the process of spawning
+    if (gameActive && enemies.length === 0 && !isSpawning.current) {
+        isSpawning.current = true; // Lock spawning
         roundRef.current += 1;
         spawnEnemies(roundRef.current);
     }
   }, [gameActive, enemies.length, spawnEnemies]);
+
+  // Unlock spawning when new enemies appear
+  useEffect(() => {
+      if (enemies.length > 0) {
+          isSpawning.current = false;
+      }
+  }, [enemies.length]);
 
   useEffect(() => {
     playerRef.current.gold = playerStateExt.gold;
