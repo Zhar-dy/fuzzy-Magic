@@ -9,11 +9,11 @@ interface FuzzyTheoryModalProps {
 const FuzzyTheoryModal: React.FC<FuzzyTheoryModalProps> = ({ type, onClose }) => {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 pointer-events-auto">
-      <div className="absolute inset-0 bg-zinc-950/80 backdrop-blur-md" onClick={onClose} />
-      <div className="relative bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="absolute inset-0 bg-zinc-950/90 backdrop-blur-md" onClick={onClose} />
+      <div className="relative bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50">
           <h2 className="text-xl font-black text-white tracking-tighter uppercase italic">
-            {type === 'rules' ? 'Logic Ruleset' : type === 'math' ? 'Fuzzy Calculus' : 'System Architecture'}
+            {type === 'rules' ? 'Logic Ruleset' : type === 'math' ? 'The Fuzzy Pipeline' : 'System Architecture'}
           </h2>
           <button onClick={onClose} className="text-zinc-600 hover:text-white text-3xl transition-colors">&times;</button>
         </div>
@@ -30,49 +30,120 @@ const FuzzyTheoryModal: React.FC<FuzzyTheoryModalProps> = ({ type, onClose }) =>
             </div>
           )}
 
+          {/* VISUAL PIPELINE DASHBOARD */}
           {type === 'math' && (
-            <div className="space-y-10 font-mono">
-              <section className="space-y-4">
-                <div className="flex items-center gap-3">
-                    <span className="bg-blue-600 text-white px-2.5 py-1 text-[9px] font-black rounded">01</span>
-                    <h3 className="text-blue-400 text-xs font-black uppercase tracking-widest">Fuzzification</h3>
-                </div>
-                <p className="text-[11px] text-zinc-400 leading-relaxed max-w-2xl">
-                   Translating crisp inputs (e.g., Distance = 4.2m) into linguistic truth values (Close = 0.82, Medium = 0.18).
-                </p>
-                <div className="bg-zinc-950 p-5 border border-zinc-800 rounded-xl text-[10px] text-blue-200/80 leading-loose shadow-inner">
-                    <p>Triangle(x; a, b, c) = max(0, min((x-a)/(b-a), (c-x)/(c-b)))</p>
-                    <p>Trapezoid(x; a, b, c, d) = max(0, min((x-a)/(b-a), 1, (d-x)/(d-c)))</p>
-                </div>
-              </section>
+            <div className="flex flex-col gap-8 relative">
+              {/* Connecting Line */}
+              <div className="absolute left-6 top-8 bottom-8 w-0.5 bg-gradient-to-b from-blue-500 via-purple-500 to-emerald-500 opacity-20 hidden md:block" />
 
-              <section className="space-y-4">
-                <div className="flex items-center gap-3">
-                    <span className="bg-purple-600 text-white px-2.5 py-1 text-[9px] font-black rounded">02</span>
-                    <h3 className="text-purple-400 text-xs font-black uppercase tracking-widest">Inference Logic</h3>
-                </div>
-                <p className="text-[11px] text-zinc-400 leading-relaxed max-w-2xl">
-                   Evaluating rule firing strength using the MIN operator (T-Norm) for logical conjunction.
-                </p>
-                <div className="bg-zinc-950 p-5 border border-zinc-800 rounded-xl text-[10px] text-purple-200/80 leading-loose shadow-inner">
-                    <p>RULE: IF (Energy IS Low AND Health IS Critical) THEN Aggression IS Passive</p>
-                    <p className="mt-2 text-zinc-100 italic">μ_Firing = min(μ_LowEnergy, μ_CriticalHealth)</p>
-                </div>
-              </section>
+              {/* STEP 1: INPUT */}
+              <div className="relative pl-0 md:pl-16">
+                 <div className="hidden md:flex absolute left-3 top-0 w-6 h-6 bg-zinc-900 border-2 border-blue-500 rounded-full items-center justify-center z-10">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                 </div>
+                 <div className="bg-zinc-950/50 border border-blue-900/30 p-5 rounded-2xl">
+                    <h3 className="text-blue-400 font-black text-xs uppercase tracking-widest mb-3">01. Crisp Input</h3>
+                    <p className="text-[10px] text-zinc-500 mb-4">Raw sensor data from the game engine is collected. This data is precise but lacks context.</p>
+                    <div className="flex gap-4">
+                        <div className="bg-black/50 border border-zinc-800 p-3 rounded-lg text-center min-w-[100px]">
+                            <span className="block text-[9px] text-zinc-500 uppercase font-bold">Distance</span>
+                            <span className="text-xl font-mono text-white">4.2<span className="text-xs text-zinc-600">m</span></span>
+                        </div>
+                        <div className="bg-black/50 border border-zinc-800 p-3 rounded-lg text-center min-w-[100px]">
+                            <span className="block text-[9px] text-zinc-500 uppercase font-bold">Energy</span>
+                            <span className="text-xl font-mono text-white">15<span className="text-xs text-zinc-600">%</span></span>
+                        </div>
+                    </div>
+                 </div>
+              </div>
 
-              <section className="space-y-4">
-                <div className="flex items-center gap-3">
-                    <span className="bg-emerald-600 text-white px-2.5 py-1 text-[9px] font-black rounded">03</span>
-                    <h3 className="text-emerald-400 text-xs font-black uppercase tracking-widest">Defuzzification</h3>
-                </div>
-                <p className="text-[11px] text-zinc-400 leading-relaxed max-w-2xl">
-                   Aggregating all active rules into a final crisp output using Weighted Average (Centroid Approximation).
-                </p>
-                <div className="bg-zinc-950 p-6 border border-zinc-800 rounded-xl text-[11px] text-emerald-200/80 text-center shadow-inner">
-                    <p className="text-2xl font-black mb-2">Σ(μ_i * c_i) / Σ(μ_i)</p>
-                    <p className="text-[9px] text-zinc-500 uppercase tracking-widest">Aggregate Weighted Sum // Output Crisp Control</p>
-                </div>
-              </section>
+              {/* STEP 2: FUZZIFICATION */}
+              <div className="relative pl-0 md:pl-16">
+                 <div className="hidden md:flex absolute left-3 top-0 w-6 h-6 bg-zinc-900 border-2 border-blue-400 rounded-full items-center justify-center z-10">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full" />
+                 </div>
+                 <div className="bg-zinc-950/50 border border-blue-900/30 p-5 rounded-2xl">
+                    <h3 className="text-blue-300 font-black text-xs uppercase tracking-widest mb-3">02. Fuzzification</h3>
+                    <p className="text-[10px] text-zinc-500 mb-4">Inputs are mapped to overlapping linguistic curves (Sets). A single value can belong to multiple sets.</p>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="relative h-16 bg-zinc-900/50 rounded-lg border border-zinc-800 flex items-end px-2 pb-2">
+                             {/* Mock Graph */}
+                             <div className="absolute inset-0 flex items-end opacity-20">
+                                <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                    <polygon points="0,100 20,0 40,100" fill="#3b82f6" />
+                                    <polygon points="30,100 50,0 70,100" fill="#a855f7" />
+                                </svg>
+                             </div>
+                             <div className="w-full flex justify-between text-[9px] font-mono relative z-10">
+                                 <span className="text-blue-400">Close: 0.85</span>
+                                 <span className="text-purple-400">Med: 0.15</span>
+                             </div>
+                        </div>
+                         <div className="relative h-16 bg-zinc-900/50 rounded-lg border border-zinc-800 flex items-end px-2 pb-2">
+                             <div className="absolute inset-0 flex items-end opacity-20">
+                                <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                    <polygon points="0,100 0,0 30,100" fill="#ef4444" />
+                                </svg>
+                             </div>
+                             <div className="w-full flex justify-between text-[9px] font-mono relative z-10">
+                                 <span className="text-red-400">Low Energy: 1.0</span>
+                             </div>
+                        </div>
+                    </div>
+                 </div>
+              </div>
+
+              {/* STEP 3: INFERENCE */}
+              <div className="relative pl-0 md:pl-16">
+                 <div className="hidden md:flex absolute left-3 top-0 w-6 h-6 bg-zinc-900 border-2 border-purple-500 rounded-full items-center justify-center z-10">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                 </div>
+                 <div className="bg-zinc-950/50 border border-purple-900/30 p-5 rounded-2xl">
+                    <h3 className="text-purple-400 font-black text-xs uppercase tracking-widest mb-3">03. Inference Engine</h3>
+                    <p className="text-[10px] text-zinc-500 mb-4">Rules are evaluated. The "Strength" of a rule is limited by its weakest input (MIN operator).</p>
+                    <div className="space-y-2 font-mono text-[10px]">
+                        <div className="bg-zinc-900 p-3 rounded border-l-2 border-purple-500 flex justify-between items-center opacity-50">
+                            <span>IF <span className="text-blue-400">Close (0.85)</span> AND <span className="text-emerald-400">Healthy (1.0)</span> THEN <span className="text-red-500">Attack</span></span>
+                            <span className="bg-zinc-800 px-2 py-1 rounded text-zinc-400">Strength: 0.85</span>
+                        </div>
+                        <div className="bg-zinc-900 p-3 rounded border-l-2 border-red-500 flex justify-between items-center shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+                             {/* Winner */}
+                            <span>IF <span className="text-orange-400">Low Energy (1.0)</span> THEN <span className="text-blue-400">Retreat</span></span>
+                            <span className="bg-red-900/30 text-red-400 px-2 py-1 rounded font-bold border border-red-900/50">Strength: 1.0</span>
+                        </div>
+                    </div>
+                 </div>
+              </div>
+
+               {/* STEP 4: DEFUZZIFICATION */}
+               <div className="relative pl-0 md:pl-16">
+                 <div className="hidden md:flex absolute left-3 top-0 w-6 h-6 bg-zinc-900 border-2 border-emerald-500 rounded-full items-center justify-center z-10">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                 </div>
+                 <div className="bg-zinc-950/50 border border-emerald-900/30 p-5 rounded-2xl">
+                    <h3 className="text-emerald-400 font-black text-xs uppercase tracking-widest mb-3">04. Defuzzification (Output)</h3>
+                    <p className="text-[10px] text-zinc-500 mb-4">All active rules contribute to the final decision. The centroid (Center of Mass) of the aggregate area determines the final action value.</p>
+                    <div className="flex items-center gap-6">
+                         <div className="flex-1 bg-zinc-900 h-2 rounded-full overflow-hidden flex">
+                            {/* Visual representation of weighted sum */}
+                            <div className="w-[20%] bg-blue-500/30"></div>
+                            <div className="w-[60%] bg-red-500/10"></div>
+                            <div className="w-[20%] bg-emerald-500/10"></div>
+                            
+                            {/* Centroid Marker */}
+                            <div className="w-1 h-full bg-white relative">
+                                <div className="absolute -top-1 -left-1 w-3 h-3 bg-white rounded-full"></div>
+                            </div>
+                         </div>
+                         <div className="text-right">
+                             <div className="text-[9px] text-zinc-500 uppercase font-bold">Final Aggression</div>
+                             <div className="text-2xl font-black text-white">15<span className="text-sm text-zinc-600">/100</span></div>
+                             <div className="text-[9px] text-blue-400 font-bold uppercase mt-1">STATE: RETREATING</div>
+                         </div>
+                    </div>
+                 </div>
+              </div>
+
             </div>
           )}
 

@@ -46,7 +46,6 @@ function App() {
   }, []);
 
   const handleStatsUpdate = useCallback((p: PlayerState, eList: EnemyState[]) => {
-    // Prevent state updates if game is supposed to be resetting
     setPlayerState(prev => ({ 
         ...prev, 
         ...p,
@@ -62,7 +61,6 @@ function App() {
   }, [handleLog]);
 
   const startGame = () => {
-      // Trigger reset signal
       setResetSignal(prev => prev + 1);
       setEnemies([]);
       setMetrics(null);
@@ -72,30 +70,31 @@ function App() {
       setShowShop(false);
       setPlayerState(INITIAL_PLAYER_STATE);
       setGameStarted(true);
-      
-      // Reset Debug params on start
       setManualEnemyEnergy(50);
       setIsAutoRegen(true);
   };
 
   const handleReset = () => {
-    // Respawn enemies and reset encounter without going back to title screen
     setGameActive(false);
     setPlayerState(INITIAL_PLAYER_STATE);
     setEnemies([]);
     setMetrics(null);
     setLogs([{ id: 'reset', text: 'Simulation reset. Entities respawned.', type: 'info' }]);
     setGameOverState({ isOver: false, won: false });
-    // Trigger reset signal
     setResetSignal(prev => prev + 1);
-    
-    // Slight delay to ensure clean state before activating
     setTimeout(() => {
         setGameActive(true);
     }, 50);
   };
 
-  const buyItem = (type: 'hp' | 'str' | 'dmg') => {
+const buyItem = (type: 'hp' | 'str' | 'dmg') => {
+    // --- NEW LOGIC: Prevent buying if HP is full ---
+    if (type === 'hp' && playerState.hp >= playerState.maxHp) {
+        handleLog("Vitality is already at maximum capacity.", 'info');
+        return;
+    }
+    // -----------------------------------------------
+
     const basePrices = { hp: 100, str: 250, dmg: 300 };
     const price = Math.floor(basePrices[type] * (1 - currentDiscount / 100));
 
@@ -117,7 +116,6 @@ function App() {
       handleLog("Insufficient gold for this relic.", 'combat');
     }
   };
-
   return (
     <div className="relative w-full h-screen bg-zinc-950 overflow-hidden select-none font-sans text-zinc-100">
       <div className="absolute inset-0 z-0">
@@ -154,7 +152,7 @@ function App() {
                 onClick={handleReset}
                 className="bg-rose-900/90 hover:bg-rose-800 text-zinc-100 font-bold text-[10px] px-4 py-2.5 rounded-xl uppercase tracking-widest shadow-xl border border-rose-800 transition-all backdrop-blur-xl"
               >
-                Respawn
+                Restart
               </button>
             )}
             <button 
@@ -166,6 +164,14 @@ function App() {
 
             <div className="bg-zinc-900/90 border border-zinc-800 px-6 py-2 rounded-xl flex items-center gap-4 backdrop-blur-xl shadow-xl">
                 <span className="text-amber-400 font-bold text-sm tracking-widest uppercase">GOLD: {playerState.gold}</span>
+                {/* Debug Coin Modifier */}
+                <button 
+                  onClick={() => setPlayerState(p => ({ ...p, gold: p.gold + 1000 }))}
+                  className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[9px] px-1.5 py-0.5 rounded border border-amber-500/30 transition-colors pointer-events-auto"
+                  title="+1000 Gold"
+                >
+                  +1k
+                </button>
                 {Math.sqrt(playerState.position.x**2 + playerState.position.z**2) < 5.5 && (
                     <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest animate-pulse border-l border-zinc-800 pl-4 italic">Sanctuary</span>
                 )}
@@ -198,8 +204,11 @@ function App() {
                       <span className="text-xl font-black">{Math.floor(playerState.hp)} <span className="text-sm font-bold text-zinc-600">/ {playerState.maxHp}</span></span>
                   </div>
                   <div className={`flex flex-col items-center transition-all duration-300 ${highlightStat === 'dmg' ? 'text-emerald-400 scale-105' : 'text-zinc-400'}`}>
-                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">Damage Output</span>
-                      <span className="text-xl font-black">{(playerState.damageMultiplier * 100).toFixed(0)}%</span>
+                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">Magic Damage</span>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-xl font-black">{(20 * playerState.damageMultiplier).toFixed(0)}</span>
+                        <span className="text-[10px] font-bold opacity-50">({(playerState.damageMultiplier * 100).toFixed(0)}%)</span>
+                      </div>
                   </div>
               </div>
 
@@ -251,22 +260,16 @@ function App() {
         <FuzzyTheoryModal type={theoryModal as any} onClose={() => setTheoryModal(null)} />
       )}
 
-      {/* Paused State with Blur */}
+      {/* Transparent Pause Indicator */}
       {!gameActive && gameStarted && !gameOverState.isOver && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-zinc-950/40 backdrop-blur-[2px] p-6 transition-all duration-300">
-          <div className="text-center p-12 border border-zinc-800 bg-zinc-900/60 rounded-[2.5rem] shadow-2xl max-w-md w-full backdrop-blur-xl">
-            <h1 className="text-6xl font-black mb-4 text-zinc-400 tracking-widest uppercase italic">
+        <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none transition-all duration-300">
+          <div className="text-center animate-pulse">
+            <h1 className="text-8xl font-black text-white/20 tracking-[0.2em] uppercase italic select-none">
               Paused
             </h1>
-            <p className="text-zinc-500 mb-10 text-[10px] uppercase tracking-[0.4em] font-black">
-              SIMULATION HALTED
+            <p className="text-zinc-500 text-[10px] uppercase tracking-[0.5em] font-black mt-2">
+              System Standby // Observation Mode
             </p>
-            <button
-              onClick={() => setGameActive(true)}
-              className="w-full py-5 bg-zinc-100 text-zinc-950 font-black text-xl rounded-2xl hover:bg-white hover:scale-[1.02] transition-all shadow-xl active:scale-[0.98] uppercase tracking-widest"
-            >
-              Resume Simulation
-            </button>
           </div>
         </div>
       )}

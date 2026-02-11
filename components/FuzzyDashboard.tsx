@@ -153,6 +153,14 @@ const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({
             sets={[...ENERGY_SETS]} 
         />
 
+        <FuzzyGraph 
+            title="Aggression Vector" 
+            info="Output: Final aggression score (0-100). >55 initiates attack sequences."
+            currentValue={activeMetrics.aggressionOutput} 
+            min={0} max={100} 
+            sets={[...AGGRESSION_SETS]} 
+        />
+
         <div className="bg-[#0f1115] p-4 rounded-xl border border-zinc-800 shadow-inner">
           <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Tactical Stance</h3>
           <div className="grid grid-cols-4 gap-3">
@@ -169,14 +177,6 @@ const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({
               ))}
           </div>
         </div>
-
-        <FuzzyGraph 
-            title="Aggression Vector" 
-            info="Output: Final aggression score (0-100). >55 initiates attack sequences."
-            currentValue={activeMetrics.aggressionOutput} 
-            min={0} max={100} 
-            sets={[...AGGRESSION_SETS]} 
-        />
       </div>
 
       <div className="mt-auto pt-6 border-t border-zinc-800 text-center">

@@ -609,6 +609,8 @@ const GameScene: React.FC<{
 
   useFrame((state) => {
     if (!gameActive) return;
+    if (isSpawning.current) return; // Guard to prevent state clobbering while spawning new wave
+
     const p = playerRef.current;
     
     // --- PROJECTILE PHYSICS LOOP ---
