@@ -108,55 +108,6 @@ const NPCMerchant: React.FC<{ position: [number, number, number] }> = ({ positio
   </group>
 );
 
-const Projectile: React.FC<{ 
-    id: number, 
-    initialPosition: Vector3, 
-    velocity: Vector3, 
-    targets: React.RefObject<THREE.Group>[], 
-    color: string, 
-    onHit: (projId: number, targetId: string) => void, 
-    onMiss: (id: number) => void 
-}> = ({ id, initialPosition, velocity, targets, color, onHit, onMiss }) => {
-  const ref = useRef<THREE.Group>(null);
-  const startTime = useRef(Date.now());
-  const pos = useRef(new THREE.Vector3(initialPosition.x, 1.2, initialPosition.z));
-  const hitIds = useRef<Set<string>>(new Set());
-
-  useFrame(() => {
-    if (!ref.current) return;
-    pos.current.x += velocity.x; 
-    pos.current.z += velocity.z;
-    ref.current.position.copy(pos.current);
-    ref.current.rotation.y += 0.4;
-    
-    if (Date.now() - startTime.current > 3000) { onMiss(id); return; }
-    
-    targets.forEach(targetRef => {
-        if (targetRef?.current) {
-            const targetId = targetRef.current.name;
-            if (hitIds.current.has(targetId)) return;
-            const targetPos = targetRef.current.position;
-            const dx = pos.current.x - targetPos.x;
-            const dz = pos.current.z - targetPos.z;
-            if (dx * dx + dz * dz < 3) {
-                hitIds.current.add(targetId);
-                onHit(id, targetId);
-            }
-        }
-    });
-  });
-
-  return (
-    <group ref={ref}>
-      <mesh rotation={[Math.PI / 4, 0, Math.PI / 4]}>
-        <icosahedronGeometry args={[0.3, 0]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={10} />
-      </mesh>
-      <pointLight distance={4} intensity={6} color={color} />
-    </group>
-  );
-};
-
 const MagePlayer = ({ playerRef }: { playerRef: React.MutableRefObject<any> }) => {
   const staffRef = useRef<THREE.Group>(null);
   const shieldRef = useRef<THREE.Group>(null);
@@ -327,13 +278,13 @@ const GuardianEnemy: React.FC<{
 const GameScene: React.FC<{ 
     onMetricsUpdate: any, onLog: any, onStatsUpdate: any, 
     gameActive: boolean, onGameOver: any, playerStateExt: PlayerState, onOpenShop: () => void,
-    manualEnemyEnergy: number, isAutoRegen: boolean
-}> = ({ onMetricsUpdate, onLog, onStatsUpdate, gameActive, onGameOver, playerStateExt, onOpenShop, manualEnemyEnergy, isAutoRegen }) => {
+    manualEnemyEnergy: number, isAutoRegen: boolean, resetSignal: number
+}> = ({ onMetricsUpdate, onLog, onStatsUpdate, gameActive, onGameOver, playerStateExt, onOpenShop, manualEnemyEnergy, isAutoRegen, resetSignal }) => {
   const playerRef = useRef({ 
     ...playerStateExt, 
     x: playerStateExt.position.x, 
     z: playerStateExt.position.z, 
-    isAttacking: false, // Repurposed for Casting state
+    isAttacking: false, 
     attackTimer: 0,
     isDodging: false,
     dodgeTimer: 0,
@@ -356,8 +307,11 @@ const GameScene: React.FC<{
   const keys = useRef<any>({});
   const { camera, raycaster, pointer } = useThree();
   const floorPlane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
-  const [projectiles, setProjectiles] = useState<any[]>([]);
   const playerMesh = useRef<THREE.Group>(null);
+
+  // --- PROJECTILE SYSTEM (Ref-based for performance/race-condition fix) ---
+  const projectilesGroupRef = useRef<THREE.Group>(null);
+  const projectilesData = useRef<Array<{ mesh: THREE.Mesh; velocity: THREE.Vector3; id: number; startTime: number }>>([]);
 
   const spawnEnemies = useCallback(() => {
     const newEnemies: EnemyState[] = [];
@@ -382,11 +336,31 @@ const GameScene: React.FC<{
     onLog("The stone giants awaken. Steel your heart.", "info");
   }, [onLog]);
 
+  // Handle Game Reset Signal (Optimized Restart)
   useEffect(() => {
-    if (gameActive && enemies.length === 0) {
+    if (resetSignal > 0) {
+        // Reset Player Position & internal stats
+        playerRef.current.x = 0;
+        playerRef.current.z = 5;
+        playerRef.current.hp = 100;
+        playerRef.current.magicCd = 0;
+        
+        // Clear Projectiles
+        if (projectilesGroupRef.current) {
+            projectilesGroupRef.current.clear();
+        }
+        projectilesData.current = [];
+
+        // Respawn Enemies
         spawnEnemies();
     }
-  }, [gameActive, enemies.length, spawnEnemies]);
+  }, [resetSignal, spawnEnemies]);
+
+  useEffect(() => {
+    if (gameActive && enemies.length === 0 && resetSignal === 0) {
+        spawnEnemies();
+    }
+  }, [gameActive, enemies.length, spawnEnemies, resetSignal]);
 
   useEffect(() => {
     playerRef.current.gold = playerStateExt.gold;
@@ -438,15 +412,31 @@ const GameScene: React.FC<{
     // Trigger Casting Animation
     playerRef.current.isAttacking = true; 
     playerRef.current.attackTimer = 15; // Animation duration
-
     playerRef.current.magicCd = playerRef.current.maxMagicCd; 
     
-    const dir = new THREE.Vector3().subVectors(mousePosRef.current, new THREE.Vector3(playerRef.current.x, 0, playerRef.current.z)).normalize();
-    setProjectiles(prev => [...prev, { 
-        id: Date.now() + Math.random(),
-        x: playerRef.current.x, z: playerRef.current.z, 
-        vx: dir.x * 0.6, vz: dir.z * 0.6, color: "#06b6d4" 
-    }]);
+    // Create Mesh directly for Three.js scene
+    if (projectilesGroupRef.current) {
+        const dir = new THREE.Vector3().subVectors(mousePosRef.current, new THREE.Vector3(playerRef.current.x, 0, playerRef.current.z)).normalize();
+        
+        const geometry = new THREE.IcosahedronGeometry(0.3, 0);
+        const material = new THREE.MeshStandardMaterial({ color: "#06b6d4", emissive: "#06b6d4", emissiveIntensity: 10 });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(playerRef.current.x, 1.2, playerRef.current.z);
+        mesh.rotation.set(Math.PI / 4, 0, Math.PI / 4);
+        
+        // Add point light child
+        const light = new THREE.PointLight("#06b6d4", 6, 4);
+        mesh.add(light);
+
+        projectilesGroupRef.current.add(mesh);
+        
+        projectilesData.current.push({
+            mesh,
+            velocity: new THREE.Vector3(dir.x * 0.6, 0, dir.z * 0.6),
+            id: Date.now() + Math.random(),
+            startTime: Date.now()
+        });
+    }
   }, [gameActive, onLog]);
 
   const handleContextKey = useCallback(() => {
@@ -489,7 +479,57 @@ const GameScene: React.FC<{
     if (!gameActive) return;
     const p = playerRef.current;
     
-    if (enemies.length === 0) return; 
+    // --- PROJECTILE PHYSICS LOOP ---
+    if (projectilesGroupRef.current) {
+        const now = Date.now();
+        const targets = Object.values(enemyRefs.current);
+        // We use a separate array to mark IDs for removal to avoid mutating while iterating
+        const idsToRemove = new Set<number>();
+
+        projectilesData.current.forEach(proj => {
+            // Move
+            proj.mesh.position.add(proj.velocity);
+            proj.mesh.rotation.y += 0.4;
+
+            // Lifetime check
+            if (now - proj.startTime > 3000) {
+                idsToRemove.add(proj.id);
+                return;
+            }
+
+            // Collision Check
+            for (const targetRef of targets) {
+                if (targetRef?.current) {
+                    const targetId = targetRef.current.name;
+                    const targetPos = targetRef.current.position;
+                    const dx = proj.mesh.position.x - targetPos.x;
+                    const dz = proj.mesh.position.z - targetPos.z;
+                    if (dx * dx + dz * dz < 3) {
+                         handleEnemyDamage(targetId, 18 * playerRef.current.damageMultiplier);
+                         idsToRemove.add(proj.id);
+                         break; // Hit one enemy max
+                    }
+                }
+            }
+        });
+
+        // Cleanup Dead Projectiles
+        if (idsToRemove.size > 0) {
+            projectilesData.current = projectilesData.current.filter(p => {
+                if (idsToRemove.has(p.id)) {
+                    projectilesGroupRef.current?.remove(p.mesh);
+                    // Dispose geometries/materials to avoid memory leaks
+                    if (p.mesh.geometry) p.mesh.geometry.dispose();
+                    if (Array.isArray(p.mesh.material)) p.mesh.material.forEach(m => m.dispose());
+                    else p.mesh.material.dispose();
+                    return false;
+                }
+                return true;
+            });
+        }
+    }
+    
+    if (enemies.length === 0 && resetSignal === 0) return; 
 
     raycaster.setFromCamera(pointer, camera); 
     const intersect = new THREE.Vector3(); 
@@ -717,21 +757,8 @@ const GameScene: React.FC<{
           <HitEffect key={eff.id} position={eff.pos} />
       ))}
       
-      {projectiles.map(pr => (
-        <Projectile 
-          key={pr.id} 
-          id={pr.id} 
-          color={pr.color} 
-          initialPosition={{ x: pr.x, y: 1.2, z: pr.z }} 
-          velocity={{ x: pr.vx, y: 0, z: pr.vz }} 
-          targets={Object.values(enemyRefs.current)} 
-          onHit={(projId, targetId) => {
-              handleEnemyDamage(targetId, 18 * playerRef.current.damageMultiplier);
-              setProjectiles(prev => prev.filter(o => o.id !== projId));
-          }} 
-          onMiss={(id) => setProjectiles(prev => prev.filter(o => o.id !== id))} 
-        />
-      ))}
+      {/* Container for Projectiles managed via Ref */}
+      <group ref={projectilesGroupRef} />
 
       <ContactShadows 
         position={[0, -0.01, 0]} 

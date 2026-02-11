@@ -18,7 +18,8 @@ function App() {
   const [gameActive, setGameActive] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameOverState, setGameOverState] = useState<{isOver: boolean, won: boolean}>({ isOver: false, won: false });
-  const [sessionKey, setSessionKey] = useState(0); 
+  // resetSignal forces internal reset in GameScene without remounting
+  const [resetSignal, setResetSignal] = useState(0); 
   const [showShop, setShowShop] = useState(false);
   const [theoryModal, setTheoryModal] = useState<'rules' | 'architecture' | 'math' | null>(null);
   const [isDashboardVisible, setIsDashboardVisible] = useState(true);
@@ -61,8 +62,8 @@ function App() {
   }, [handleLog]);
 
   const startGame = () => {
-      // Increment session key to force full unmount/remount of GameScene
-      setSessionKey(prev => prev + 1); 
+      // Trigger reset signal
+      setResetSignal(prev => prev + 1);
       setEnemies([]);
       setMetrics(null);
       setLogs([{ id: 'init', text: 'Initiating tactical divination. The Shadow Golems approach.', type: 'info' }]);
@@ -85,9 +86,10 @@ function App() {
     setMetrics(null);
     setLogs([{ id: 'reset', text: 'Simulation reset. Entities respawned.', type: 'info' }]);
     setGameOverState({ isOver: false, won: false });
-    setSessionKey(prev => prev + 1); // Force scene remount
+    // Trigger reset signal
+    setResetSignal(prev => prev + 1);
     
-    // Slight delay to ensure clean remount before activating
+    // Slight delay to ensure clean state before activating
     setTimeout(() => {
         setGameActive(true);
     }, 50);
@@ -121,7 +123,6 @@ function App() {
       <div className="absolute inset-0 z-0">
         <Canvas shadows camera={{ position: [0, 15, 15], fov: 40 }}>
             <GameScene 
-                key={sessionKey} 
                 gameActive={gameActive}
                 onMetricsUpdate={setMetrics}
                 onLog={handleLog}
@@ -131,6 +132,7 @@ function App() {
                 onOpenShop={() => setShowShop(true)}
                 manualEnemyEnergy={manualEnemyEnergy}
                 isAutoRegen={isAutoRegen}
+                resetSignal={resetSignal}
             />
         </Canvas>
       </div>
@@ -274,7 +276,7 @@ function App() {
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-950/95 backdrop-blur-2xl p-6">
           <div className="text-center p-12 border border-zinc-800 bg-zinc-900/40 rounded-[2.5rem] shadow-2xl max-w-xl w-full">
             <h1 className="text-6xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-br from-amber-400 via-blue-500 to-emerald-600 tracking-tighter italic uppercase">
-              {gameOverState.isOver ? (gameOverState.won ? "DOMINANCE" : "FALLEN") : "DECISION MATRIX"}
+              {gameOverState.isOver ? (gameOverState.won ? "DOMINANCE" : "FALLEN") : "FUZZY RPG"}
             </h1>
             <p className="text-zinc-500 mb-10 text-[10px] uppercase tracking-[0.4em] font-black">
               NEURAL BATTLE INTERFACE // FUZZY SOULS

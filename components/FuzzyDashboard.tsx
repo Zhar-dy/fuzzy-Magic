@@ -111,7 +111,7 @@ const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({
 
       <div className="border-b border-zinc-800 pb-5">
         <h2 className="text-lg font-black text-white tracking-widest uppercase italic bg-gradient-to-r from-zinc-200 to-zinc-500 bg-clip-text text-transparent">
-          Decision Matrix
+          Fuzzy RPG
         </h2>
         <div className="flex items-center gap-2 mt-2">
             <span className="text-[10px] text-zinc-500 font-bold uppercase">System State:</span>
