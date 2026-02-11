@@ -41,6 +41,7 @@ const DEFAULT_METRICS: FuzzyMetrics = {
     energyPct: 100,
     aggressionOutput: 0,
     stateDescription: "SEARCHING",
+    activeRuleDescription: "Initializing...",
     playerStance: { normal: 1, defensive: 0, dodging: 0, healing: 0 },
     playerAggro: 0, playerMagic: 0, hazardProximity: 0,
     fuzzyDist: { close: 0, medium: 0, far: 1 },

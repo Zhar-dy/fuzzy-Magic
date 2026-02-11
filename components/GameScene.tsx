@@ -29,26 +29,36 @@ const ENEMY_SEPARATION_STRENGTH = 0.05;
 
 const HitEffect: React.FC<{ position: [number, number, number] }> = ({ position }) => {
   const meshRef = useRef<THREE.Mesh>(null);
+  const ringRef = useRef<THREE.Mesh>(null);
+  
   useFrame(() => {
     if (meshRef.current) {
-      meshRef.current.scale.multiplyScalar(1.2);
+      meshRef.current.scale.multiplyScalar(1.1);
       if (meshRef.current.material instanceof THREE.MeshStandardMaterial) {
-        meshRef.current.material.opacity *= 0.8;
+        meshRef.current.material.opacity *= 0.85;
       }
+    }
+    if (ringRef.current) {
+        ringRef.current.scale.multiplyScalar(1.15);
+        ringRef.current.rotation.z += 0.1;
+        if (ringRef.current.material instanceof THREE.MeshBasicMaterial) {
+             ringRef.current.material.opacity *= 0.8;
+        }
     }
   });
 
   return (
-    <mesh ref={meshRef} position={position}>
-      <sphereGeometry args={[0.6, 16, 16]} />
-      <meshStandardMaterial 
-        color="#fbbf24" 
-        transparent 
-        opacity={1} 
-        emissive="#fbbf24" 
-        emissiveIntensity={8} 
-      />
-    </mesh>
+    <group position={position}>
+        <mesh ref={meshRef}>
+            <sphereGeometry args={[0.5, 16, 16]} />
+            <meshStandardMaterial color="#fbbf24" transparent opacity={1} emissive="#fbbf24" emissiveIntensity={8} />
+        </mesh>
+        <mesh ref={ringRef} rotation={[Math.PI/2, 0, 0]}>
+            <ringGeometry args={[0.4, 0.6, 32]} />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.6} side={THREE.DoubleSide} />
+        </mesh>
+        <Sparkles count={8} scale={2} size={8} speed={0.4} color="#fcd34d" />
+    </group>
   );
 };
 
@@ -112,17 +122,16 @@ const MagePlayer = ({ playerRef }: { playerRef: React.MutableRefObject<any> }) =
   const staffRef = useRef<THREE.Group>(null);
   const shieldRef = useRef<THREE.Group>(null);
   const bodyRef = useRef<THREE.Mesh>(null);
+  const [isHealing, setIsHealing] = useState(false);
 
   useFrame((state) => {
-    const { isAttacking, isDefending, flashTimer } = playerRef.current;
+    const { isAttacking, isDefending, flashTimer, isHealing: healingState } = playerRef.current;
+    
+    if (healingState !== isHealing) setIsHealing(healingState);
 
     if (staffRef.current) {
-      // Casting Animation: Raise staff high (negative X rotation)
-      // Idle rotation around 0.2
       const targetRot = isAttacking ? -0.8 : 0.2;
       staffRef.current.rotation.x = THREE.MathUtils.lerp(staffRef.current.rotation.x, targetRot, 0.2);
-      
-      // Add subtle bobbing
       staffRef.current.position.y = 0.8 + Math.sin(state.clock.elapsedTime * 2) * 0.05 + (isAttacking ? 0.3 : 0);
     }
 
@@ -134,16 +143,16 @@ const MagePlayer = ({ playerRef }: { playerRef: React.MutableRefObject<any> }) =
 
     if (bodyRef.current && bodyRef.current.material instanceof THREE.MeshStandardMaterial) {
         if (flashTimer > 0) {
-            // Damage Flash
             bodyRef.current.material.emissive.setHex(0xff0000);
             bodyRef.current.material.emissiveIntensity = flashTimer * 3;
             playerRef.current.flashTimer--;
         } else if (isAttacking) {
-            // Casting Glow
-            bodyRef.current.material.emissive.setHex(0x06b6d4); // Cyan
+            bodyRef.current.material.emissive.setHex(0x06b6d4);
             bodyRef.current.material.emissiveIntensity = 2.0;
+        } else if (healingState) {
+            bodyRef.current.material.emissive.setHex(0x4ade80);
+            bodyRef.current.material.emissiveIntensity = 1.0;
         } else {
-            // Idle Glow
             bodyRef.current.material.emissive.setHex(0x06b6d4);
             bodyRef.current.material.emissiveIntensity = 0.5;
         }
@@ -177,6 +186,18 @@ const MagePlayer = ({ playerRef }: { playerRef: React.MutableRefObject<any> }) =
           <meshStandardMaterial color="#06b6d4" emissive="#06b6d4" emissiveIntensity={5} transparent opacity={0.5} />
         </mesh>
       </group>
+      
+      {/* Healing Particles */}
+      {isHealing && (
+        <group position={[0, 0.1, 0]}>
+            <Sparkles count={40} scale={2.5} size={5} speed={1.5} opacity={0.7} color="#4ade80" />
+            <mesh rotation={[-Math.PI/2, 0, 0]} position={[0, 0.1, 0]}>
+                 <ringGeometry args={[0.6, 1.5, 32]} />
+                 <meshBasicMaterial color="#4ade80" transparent opacity={0.15} side={THREE.DoubleSide} />
+            </mesh>
+            <pointLight position={[0, 1, 0]} color="#4ade80" intensity={3} distance={4} />
+        </group>
+      )}
     </group>
   );
 };
@@ -188,34 +209,52 @@ const GuardianEnemy: React.FC<{
   isAttacking: boolean;
   hp: number;
   maxHp: number;
-  }> = ({ enemyId, enemyRef, position, isAttacking, hp, maxHp }) => {
+  energy: number;
+  }> = ({ enemyId, enemyRef, position, isAttacking, hp, maxHp, energy }) => {
   const torsoRef = useRef<THREE.Mesh>(null);
   const leftArmRef = useRef<THREE.Mesh>(null);
   const rightArmRef = useRef<THREE.Mesh>(null);
+  const eyesRef = useRef<THREE.Group>(null);
 
   useFrame((state) => {
-    // Animation for floating arms
+    const t = state.clock.elapsedTime;
+    
+    // Arm Animation
     if (leftArmRef.current && rightArmRef.current) {
-      const t = state.clock.elapsedTime;
       leftArmRef.current.position.y = 1.2 + Math.sin(t * 3) * 0.1;
       rightArmRef.current.position.y = 1.2 + Math.sin(t * 3 + Math.PI) * 0.1;
-      
       leftArmRef.current.rotation.z = 0.2 + Math.sin(t * 2) * 0.05;
       rightArmRef.current.rotation.z = -0.2 - Math.sin(t * 2) * 0.05;
     }
 
-    // Material flashing on Attack or Damage
-    const targetIntensity = isAttacking ? 5 + Math.sin(state.clock.elapsedTime * 40) * 5 : 0;
-    const targetColor = isAttacking ? 0xff1111 : 0x78716c; // Red flash or Stone color
-
+    // Body Material Logic
     if (torsoRef.current && torsoRef.current.material instanceof THREE.MeshStandardMaterial) {
       if (isAttacking) {
           torsoRef.current.material.emissive.setHex(0xff1111);
-          torsoRef.current.material.emissiveIntensity = targetIntensity;
+          torsoRef.current.material.emissiveIntensity = 2 + Math.sin(t * 15) * 2;
       } else {
+          // Dim body when low energy
+          const energyFactor = Math.max(0.3, energy / 100);
+          torsoRef.current.material.color.setHSL(0.07, 0.05, 0.45 * energyFactor);
           torsoRef.current.material.emissive.setHex(0x000000);
           torsoRef.current.material.emissiveIntensity = 0;
       }
+    }
+
+    // Eye Logic
+    if (eyesRef.current) {
+        // Aggressive: Red & Bright | Passive: Amber | Low Energy: Dim/Grey
+        const isLowEnergy = energy < 20;
+        const targetColor = isAttacking ? "#ef4444" : (isLowEnergy ? "#57534e" : "#f59e0b");
+        const targetIntensity = isAttacking ? 8 : (isLowEnergy ? 0.5 : 4);
+
+        eyesRef.current.children.forEach((child) => {
+            if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+                child.material.color.set(targetColor);
+                child.material.emissive.set(targetColor);
+                child.material.emissiveIntensity = THREE.MathUtils.lerp(child.material.emissiveIntensity, targetIntensity, 0.1);
+            }
+        });
     }
   });
 
@@ -223,11 +262,11 @@ const GuardianEnemy: React.FC<{
 
   return (
     <group ref={enemyRef} name={enemyId} position={position}>
-      {/* Health Bar */}
-      <Html position={[0, 2.8, 0]} center distanceFactor={12} zIndexRange={[100, 0]}>
-          <div className="w-16 h-1.5 bg-zinc-900/80 rounded-full border border-zinc-700 overflow-hidden backdrop-blur-sm pointer-events-none">
+      {/* Bigger Health Bar */}
+      <Html position={[0, 3.2, 0]} center distanceFactor={12} zIndexRange={[100, 0]}>
+          <div className="w-24 h-3 bg-zinc-900/90 rounded-sm border border-zinc-600 overflow-hidden backdrop-blur-sm pointer-events-none shadow-lg">
             <div
-              className="h-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)] transition-all duration-300 ease-out"
+              className="h-full bg-gradient-to-r from-rose-600 to-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.6)] transition-all duration-300 ease-out"
               style={{ width: `${Math.max(0, (hp / maxHp) * 100)}%` }}
             />
           </div>
@@ -235,7 +274,6 @@ const GuardianEnemy: React.FC<{
 
       {/* Main Golem Body */}
       <group>
-        {/* Torso */}
         <mesh ref={torsoRef} position={[0, 1.1, 0]}>
             <dodecahedronGeometry args={[0.7, 0]} />
             <meshStandardMaterial color="#78716c" roughness={0.9} />
@@ -247,18 +285,19 @@ const GuardianEnemy: React.FC<{
                 <boxGeometry args={[0.5, 0.5, 0.5]} />
                 <meshStandardMaterial color="#57534e" roughness={0.9} />
             </mesh>
-            {/* Glowing Eyes */}
-            <mesh position={[-0.12, 0.05, 0.26]}>
-                <sphereGeometry args={[0.06]} />
-                <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={5} />
-            </mesh>
-             <mesh position={[0.12, 0.05, 0.26]}>
-                 <sphereGeometry args={[0.06]} />
-                <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={5} />
-            </mesh>
+            {/* Glowing Eyes Group */}
+            <group ref={eyesRef}>
+                <mesh position={[-0.12, 0.05, 0.26]}>
+                    <sphereGeometry args={[0.08]} />
+                    <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={4} />
+                </mesh>
+                <mesh position={[0.12, 0.05, 0.26]}>
+                    <sphereGeometry args={[0.08]} />
+                    <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={4} />
+                </mesh>
+            </group>
         </group>
 
-        {/* Floating Arms */}
         <mesh ref={leftArmRef} position={[-0.9, 1.2, 0]}>
             <boxGeometry args={[0.5, 0.8, 0.5]} />
             <meshStandardMaterial color="#78716c" roughness={0.9} />
@@ -269,8 +308,10 @@ const GuardianEnemy: React.FC<{
         </mesh>
       </group>
       
-      {/* Ambient Red Glow */}
-      <pointLight position={[0, 1.5, 0.5]} color="#ef4444" intensity={1} distance={4} />
+      {/* Ambient Red Glow for Aggro */}
+      {isAttacking && (
+         <pointLight position={[0, 1.5, 0.5]} color="#ef4444" intensity={2} distance={5} />
+      )}
     </group>
   );
 };
@@ -504,8 +545,10 @@ const GameScene: React.FC<{
                     const targetPos = targetRef.current.position;
                     const dx = proj.mesh.position.x - targetPos.x;
                     const dz = proj.mesh.position.z - targetPos.z;
-                    if (dx * dx + dz * dz < 3) {
-                         handleEnemyDamage(targetId, 18 * playerRef.current.damageMultiplier);
+                    // INCREASED COLLISION RADIUS to 4 (distance 2) for better reliability
+                    if (dx * dx + dz * dz < 4) {
+                         // DAMAGE INCREASED TO 20 (5 hits to kill 100HP enemy)
+                         handleEnemyDamage(targetId, 20 * playerRef.current.damageMultiplier);
                          idsToRemove.add(proj.id);
                          break; // Hit one enemy max
                     }
@@ -750,6 +793,7 @@ const GameScene: React.FC<{
           isAttacking={enemyVisualStates[e.id]?.isAttacking || false}
           hp={e.hp}
           maxHp={e.maxHp}
+          energy={e.energy}
         />
       ))}
 

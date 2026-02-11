@@ -40,6 +40,8 @@ export interface FuzzyMetrics {
   energyPct: number;
   aggressionOutput: number;
   stateDescription: string;
+  activeRuleDescription: string; // New field for self-explanatory AI
+  
   // New metrics
   playerStance: { normal: number; defensive: number; dodging: number; healing: number };
   

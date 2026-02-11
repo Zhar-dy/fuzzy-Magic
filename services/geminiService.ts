@@ -18,7 +18,7 @@ function getFallback(state: string): string {
     return phrases[Math.floor(Math.random() * phrases.length)];
 }
 
-export const generateEnemyBanter = async (state: string, playerHp: number, enemyHp: number): Promise<string> => {
+export const generateEnemyBanter = async (state: string, playerHp: number, enemyHp: number, activeRule: string): Promise<string> => {
   if (isQuotaExceeded) return getFallback(state);
 
   const prompt = `
@@ -26,7 +26,8 @@ export const generateEnemyBanter = async (state: string, playerHp: number, enemy
     Current State: ${state}.
     My HP: ${enemyHp}%.
     Player HP: ${playerHp}%.
-    Write a VERY short, punchy line of dialogue (max 10 words). No quotes.
+    Reason for Behavior: "${activeRule}".
+    Write a VERY short, punchy line of dialogue (max 10 words) reflecting this reason. No quotes.
   `;
 
   try {
