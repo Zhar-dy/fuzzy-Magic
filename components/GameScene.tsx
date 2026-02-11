@@ -392,7 +392,10 @@ const GameScene: React.FC<{
   const enemyAttackCooldowns = useRef<Record<string, number>>({});
   const damageQueue = useRef<Record<string, number>>({});
   const roundRef = useRef(0);
-  
+  const deadEnemiesRef = useRef(new Set<string>());
+  // Velocity Ref for smoothing
+  const enemyVelocities = useRef<Record<string, THREE.Vector3>>({});
+
   const throttleCounter = useRef(0);
   const mousePosRef = useRef(new THREE.Vector3());
   const keys = useRef<any>({});
@@ -403,6 +406,10 @@ const GameScene: React.FC<{
   // --- PROJECTILE SYSTEM (Ref-based for performance/race-condition fix) ---
   const projectilesGroupRef = useRef<THREE.Group>(null);
   const projectilesData = useRef<Array<{ mesh: THREE.Mesh; velocity: THREE.Vector3; id: number; startTime: number }>>([]);
+  
+  // --- PARTICLE SYSTEM (Trail Effect) ---
+  const particlesGroupRef = useRef<THREE.Group>(null);
+  const particlesData = useRef<Array<{ mesh: THREE.Mesh; life: number }>>([]);
 
   const spawnEnemies = useCallback((count: number) => {
     const newEnemies: EnemyState[] = [];
@@ -410,6 +417,8 @@ const GameScene: React.FC<{
     aiInstances.current = {};
     enemyAttackCooldowns.current = {};
     damageQueue.current = {};
+    deadEnemiesRef.current.clear();
+    enemyVelocities.current = {};
 
     for (let i = 0; i < count; i++) {
         const id = `golem_${Date.now()}_${i}`;
@@ -423,6 +432,7 @@ const GameScene: React.FC<{
         enemyRefs.current[id] = React.createRef<THREE.Group>();
         aiInstances.current[id] = new FuzzyAI();
         enemyAttackCooldowns.current[id] = 0;
+        enemyVelocities.current[id] = new THREE.Vector3(0, 0, 0);
     }
     setEnemies(newEnemies);
     onLog(`Wave ${count} Initiated. ${count} Hostiles Detected.`, "info");
@@ -442,6 +452,12 @@ const GameScene: React.FC<{
             projectilesGroupRef.current.clear();
         }
         projectilesData.current = [];
+        
+        // Clear Particles
+        if (particlesGroupRef.current) {
+            particlesGroupRef.current.clear();
+        }
+        particlesData.current = [];
 
         // Reset Round & Enemies (but don't spawn yet, wait for auto-spawn effect)
         roundRef.current = 0;
@@ -501,14 +517,34 @@ const GameScene: React.FC<{
     if (projectilesGroupRef.current) {
         const dir = new THREE.Vector3().subVectors(mousePosRef.current, new THREE.Vector3(playerRef.current.x, 0, playerRef.current.z)).normalize();
         
-        const geometry = new THREE.IcosahedronGeometry(0.3, 0);
-        const material = new THREE.MeshStandardMaterial({ color: "#06b6d4", emissive: "#06b6d4", emissiveIntensity: 10 });
+        // --- ENHANCED PROJECTILE VISUALS ---
+        const geometry = new THREE.OctahedronGeometry(0.25, 0);
+        const material = new THREE.MeshStandardMaterial({ 
+            color: "#a5f3fc", 
+            emissive: "#06b6d4", 
+            emissiveIntensity: 6,
+            roughness: 0.1,
+            metalness: 0.8
+        });
         const mesh = new THREE.Mesh(geometry, material);
         mesh.position.set(playerRef.current.x, 1.2, playerRef.current.z);
-        mesh.rotation.set(Math.PI / 4, 0, Math.PI / 4);
+        // Random spin on spawn
+        mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+
+        // Core Halo / Shell
+        const haloGeo = new THREE.SphereGeometry(0.4, 16, 16);
+        const haloMat = new THREE.MeshBasicMaterial({
+            color: "#0891b2",
+            transparent: true,
+            opacity: 0.4,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const halo = new THREE.Mesh(haloGeo, haloMat);
+        mesh.add(halo);
         
-        // Add point light child
-        const light = new THREE.PointLight("#06b6d4", 6, 4);
+        // Light
+        const light = new THREE.PointLight("#06b6d4", 8, 8);
         mesh.add(light);
 
         projectilesGroupRef.current.add(mesh);
@@ -572,7 +608,31 @@ const GameScene: React.FC<{
         projectilesData.current.forEach(proj => {
             // Move
             proj.mesh.position.add(proj.velocity);
-            proj.mesh.rotation.y += 0.4;
+            
+            // Visual Rotation
+            proj.mesh.rotation.x += 0.2;
+            proj.mesh.rotation.z += 0.2;
+
+            // --- TRAIL PARTICLE GENERATION ---
+            // Spawn trail particles occasionally
+            if (particlesGroupRef.current && throttleCounter.current % 2 === 0) { 
+                const pGeo = new THREE.DodecahedronGeometry(0.12, 0);
+                const pMat = new THREE.MeshBasicMaterial({ 
+                    color: "#67e8f9", 
+                    transparent: true, 
+                    opacity: 0.6,
+                    blending: THREE.AdditiveBlending
+                });
+                const pMesh = new THREE.Mesh(pGeo, pMat);
+                // Slight random offset
+                pMesh.position.copy(proj.mesh.position).add(
+                    new THREE.Vector3((Math.random()-0.5)*0.2, (Math.random()-0.5)*0.2, (Math.random()-0.5)*0.2)
+                );
+                pMesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+                
+                particlesGroupRef.current.add(pMesh);
+                particlesData.current.push({ mesh: pMesh, life: 1.0 });
+            }
 
             // Lifetime check
             if (now - proj.startTime > 3000) {
@@ -614,6 +674,27 @@ const GameScene: React.FC<{
         }
     }
     
+    // --- PARTICLE UPDATE LOOP ---
+    if (particlesGroupRef.current) {
+        particlesData.current = particlesData.current.filter(p => {
+            p.life -= 0.04; // Fade out speed
+            p.mesh.scale.setScalar(p.life);
+            p.mesh.rotation.y += 0.1;
+            
+            if (p.mesh.material instanceof THREE.MeshBasicMaterial) {
+                p.mesh.material.opacity = p.life * 0.6;
+            }
+            
+            if (p.life <= 0) {
+                particlesGroupRef.current?.remove(p.mesh);
+                p.mesh.geometry.dispose();
+                (p.mesh.material as THREE.Material).dispose();
+                return false;
+            }
+            return true;
+        });
+    }
+
     if (enemies.length === 0 && resetSignal === 0) return; 
 
     raycaster.setFromCamera(pointer, camera); 
@@ -662,8 +743,15 @@ const GameScene: React.FC<{
     let goldReward = 0;
     
     const nextEnemies = enemies.map(e => {
+        // Race Condition Fix: Check sync death registry
+        if (deadEnemiesRef.current.has(e.id)) return null;
+
         const ai = aiInstances.current[e.id];
         if (!ai) return e;
+
+        // Initialize velocity if missing (defensive)
+        if (!enemyVelocities.current[e.id]) enemyVelocities.current[e.id] = new THREE.Vector3(0,0,0);
+        const velocity = enemyVelocities.current[e.id];
 
         const dx = p.x - e.position.x;
         const dz = p.z - e.position.z;
@@ -709,10 +797,14 @@ const GameScene: React.FC<{
             }
         });
 
+        // Determine Desired Velocity
+        const desiredVelocity = new THREE.Vector3(0, 0, 0);
+
         if (dCenterSq < (SAFE_ZONE_RADIUS + 0.2)**2) {
             const pushDir = new THREE.Vector2(newPos.x, newPos.z).normalize();
             newPos.x = pushDir.x * (SAFE_ZONE_RADIUS + 0.5);
             newPos.z = pushDir.y * (SAFE_ZONE_RADIUS + 0.5);
+            velocity.set(0, 0, 0); // Kill velocity on wall hit
         } else if (!isPlayerSafe) {
             const angle = Math.atan2(dz, dx);
             const finalSpeed = 0.012 + Math.max(0, (metrics.aggressionOutput - 20) * 0.003);
@@ -738,28 +830,40 @@ const GameScene: React.FC<{
                   triggerDamageFlash();
                   onLog(`Integrity compromised! -${Math.floor(damage)} Vitality`, 'combat');
                 }
-                newPos.x = THREE.MathUtils.lerp(newPos.x, p.x, 0.2);
-                newPos.z = THREE.MathUtils.lerp(newPos.z, p.z, 0.2);
+                
+                // Attack Lunge (High Speed)
+                desiredVelocity.set(dx, 0, dz).normalize().multiplyScalar(0.2); 
             } else if (metrics.energyPct < 25 || metrics.stateDescription === 'CONSERVING') {
                 // Retreat Logic
-                newPos.x -= Math.cos(angle) * finalSpeed;
-                newPos.z -= Math.sin(angle) * finalSpeed;
+                desiredVelocity.set(-Math.cos(angle), 0, -Math.sin(angle)).multiplyScalar(finalSpeed);
                 nextVisualStates[e.id] = { isAttacking: false };
             } else if (dist > ENEMY_STOP_DISTANCE) {
-                newPos.x += Math.cos(angle) * finalSpeed;
-                newPos.z += Math.sin(angle) * finalSpeed;
+                // Chase
+                desiredVelocity.set(Math.cos(angle), 0, Math.sin(angle)).multiplyScalar(finalSpeed);
                 nextVisualStates[e.id] = { isAttacking: false };
             } else {
                 nextVisualStates[e.id] = { isAttacking: false };
             }
             if (enemyAttackCooldowns.current[e.id] > 0) enemyAttackCooldowns.current[e.id]--;
         } else {
-            newPos.x += (Math.random() - 0.5) * 0.02;
-            newPos.z += (Math.random() - 0.5) * 0.02;
+            // Idle wander
+            desiredVelocity.set((Math.random() - 0.5) * 0.02, 0, (Math.random() - 0.5) * 0.02);
             nextVisualStates[e.id] = { isAttacking: false };
         }
-        newPos.x += separation.x;
-        newPos.z += separation.z;
+
+        // Apply separation force to desired velocity for smoother blending
+        desiredVelocity.add(separation);
+
+        // Smooth Velocity Update
+        // Experiment with values between 0.01 and 0.1 for responsiveness vs smoothness
+        const smoothingFactor = 0.04; 
+        velocity.lerp(desiredVelocity, smoothingFactor);
+
+        // Apply velocity to position if not constrained by safe zone logic above
+        if (!(dCenterSq < (SAFE_ZONE_RADIUS + 0.2)**2)) {
+             newPos.x += velocity.x;
+             newPos.z += velocity.z;
+        }
 
         // --- DYNAMIC REGEN LOGIC ---
         let nextEnergy = currentEnergy;
@@ -775,15 +879,24 @@ const GameScene: React.FC<{
         }
 
         return { ...e, position: newPos, energy: nextEnergy, hp: currentHp };
-    }).filter(e => {
+    }).filter((e): e is EnemyState => {
+        if (!e) return false;
+
         // --- DEATH LOGIC ---
         if (e.hp <= 0) {
-            goldReward += 100;
-            delete enemyRefs.current[e.id];
-            delete aiInstances.current[e.id];
-            delete enemyAttackCooldowns.current[e.id];
-            delete damageQueue.current[e.id];
-            return false;
+             // Ensure we only process death once per enemy ID
+             if (!deadEnemiesRef.current.has(e.id)) {
+                goldReward += 100;
+                deadEnemiesRef.current.add(e.id); // Mark as dead immediately for next frame
+                
+                delete enemyRefs.current[e.id];
+                delete aiInstances.current[e.id];
+                delete enemyAttackCooldowns.current[e.id];
+                delete damageQueue.current[e.id];
+                // Clean up velocity ref
+                delete enemyVelocities.current[e.id];
+             }
+             return false;
         }
         return true;
     });
@@ -874,6 +987,8 @@ const GameScene: React.FC<{
       
       {/* Container for Projectiles managed via Ref */}
       <group ref={projectilesGroupRef} />
+      {/* Container for Particles managed via Ref */}
+      <group ref={particlesGroupRef} />
 
       <ContactShadows 
         position={[0, -0.01, 0]} 

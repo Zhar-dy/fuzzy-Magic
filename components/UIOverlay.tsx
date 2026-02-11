@@ -139,7 +139,6 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ player, enemies, logs }) =
                 <div className="flex justify-between"><span>SHIFT</span> <span className="text-zinc-400">DASH</span></div>
                 <div className="flex justify-between"><span>Q</span> <span className="text-zinc-400">GUARD</span></div>
                 <div className="flex justify-between"><span>F</span> <span className="text-zinc-400">MEND</span></div>
-                <div className="flex justify-between"><span>SPACE</span> <span className="text-zinc-400">STRIKE</span></div>
                 <div className="flex justify-between"><span>E</span> <span className="text-zinc-400">SPELL</span></div>
               </div>
             </div>
