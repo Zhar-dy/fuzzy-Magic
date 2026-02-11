@@ -4,6 +4,10 @@ import { FuzzyMetrics } from '../types';
 
 interface FuzzyDashboardProps {
   metrics: FuzzyMetrics | null;
+  manualEnemyEnergy: number;
+  setManualEnemyEnergy: (val: number) => void;
+  isAutoRegen: boolean;
+  setIsAutoRegen: (val: boolean) => void;
 }
 
 // Decision Matrix Aesthetic Palette
@@ -19,9 +23,9 @@ const HEALTH_SETS = [
 ] as const;
 
 const ENERGY_SETS = [
-  { name: "Empty", color: "#ef4444", type: "trapezoid", params: [-1, 0, 10, 25] },     // Red
+  { name: "Empty", color: "#ef4444", type: "trapezoid", params: [-1, 0, 10, 20] },     // Red
   { name: "Low", color: "#f97316", type: "triangle", params: [15, 35, 55] },         // Orange
-  { name: "Full", color: "#10b981", type: "trapezoid", params: [45, 75, 100, 101] }   // Emerald
+  { name: "Full", color: "#10b981", type: "trapezoid", params: [50, 70, 100, 101] }   // Emerald
 ] as const;
 
 const AGGRESSION_SETS = [
@@ -49,7 +53,11 @@ const DEFAULT_METRICS: FuzzyMetrics = {
     fuzzyHazard: { inDanger: 0, safe: 1 }
 };
 
-const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({ metrics }) => {
+const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({ 
+    metrics, 
+    manualEnemyEnergy, setManualEnemyEnergy, 
+    isAutoRegen, setIsAutoRegen 
+}) => {
   // Use default metrics if null to ensure dashboard always renders structure
   const activeMetrics = metrics || DEFAULT_METRICS;
   const isOffline = !metrics;
@@ -69,6 +77,37 @@ const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({ metrics }) => {
             </div>
         </div>
       )}
+
+      {/* DEBUG CONTROL PANEL */}
+      <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-700 space-y-3">
+          <h3 className="text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Debug Override</h3>
+          
+          <div className="flex justify-between items-center">
+             <label className="text-[10px] text-zinc-400 uppercase font-bold">Auto Regen</label>
+             <input 
+                type="checkbox" 
+                checked={isAutoRegen} 
+                onChange={(e) => setIsAutoRegen(e.target.checked)}
+                className="accent-cyan-500 cursor-pointer"
+             />
+          </div>
+
+          <div className="space-y-1">
+             <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
+                <span>ENERGY LVL</span>
+                <span className={isAutoRegen ? 'opacity-50' : 'text-cyan-400'}>{manualEnemyEnergy}%</span>
+             </div>
+             <input 
+                type="range" 
+                min="0" max="100" 
+                value={manualEnemyEnergy}
+                onChange={(e) => !isAutoRegen && setManualEnemyEnergy(parseInt(e.target.value))}
+                disabled={isAutoRegen}
+                className={`w-full h-1.5 rounded-full appearance-none cursor-pointer ${isAutoRegen ? 'bg-zinc-800' : 'bg-cyan-900'}`}
+                style={{ opacity: isAutoRegen ? 0.3 : 1 }}
+             />
+          </div>
+      </div>
 
       <div className="border-b border-zinc-800 pb-5">
         <h2 className="text-lg font-black text-white tracking-widest uppercase italic bg-gradient-to-r from-zinc-200 to-zinc-500 bg-clip-text text-transparent">

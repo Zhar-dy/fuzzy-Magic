@@ -1,4 +1,3 @@
-
 import { FuzzyMetrics } from '../types';
 
 export function triangle(x: number, a: number, b: number, c: number): number {
@@ -16,12 +15,12 @@ export function trapezoid(x: number, a: number, b: number, c: number, d: number)
 }
 
 export const FUZZY_RULES = [
-  "IF Energy IS Empty THEN Aggression IS Passive (Recharge)",
+  "IF Energy IS Empty THEN Aggression IS Passive (PRIORITY: Recharge)",
+  "IF Energy IS Full THEN Aggression IS Hostile (Aggressive)",
   "IF Player IS Healing AND Distance IS Close THEN Aggression IS Hostile (Punish Heal)",
   "IF Player IS Dodging AND Distance IS Far THEN Aggression IS Passive (Conserve Energy)",
   "IF Player IS Defensive AND Health IS Healthy THEN Aggression IS Neutral (Pressure Shield)",
   "IF Player IS Defensive AND Health IS Critical THEN Aggression IS Passive (Regroup)",
-  "IF Energy IS Full AND Distance IS Far THEN Aggression IS Hostile (Ranged Sniper)",
   "IF Energy IS Low AND Distance IS Close THEN Aggression IS Hostile (Melee Strike)",
   "IF PlayerHP IS Healthy AND Distance IS Medium THEN Aggression IS Hostile (Pressure)",
   "IF Health IS Critical AND PlayerHP IS Critical THEN Aggression IS Hostile (Final Stand)",
@@ -70,9 +69,13 @@ export class FuzzyAI {
     this.playerHealth.wounded = triangle(playerHpPercent, 30, 50, 70);
     this.playerHealth.healthy = trapezoid(playerHpPercent, 60, 80, 100, 101);
 
-    this.energy.empty = trapezoid(energyPct, -1, 0, 10, 25);
+    // ENERGY SETS REFINED
+    // Narrow Empty to 0-20 to ensure strict recharge behavior
+    this.energy.empty = trapezoid(energyPct, -1, 0, 10, 20);
+    // Low acts as a buffer
     this.energy.low = triangle(energyPct, 15, 35, 55);
-    this.energy.full = trapezoid(energyPct, 45, 75, 100, 101);
+    // Widen Full to 50-100 to encourage aggression
+    this.energy.full = trapezoid(energyPct, 50, 70, 100, 101);
 
     this.playerMagic.armed = trapezoid(magicCd, -1, 0, 10, 30);
     this.playerMagic.recharging = triangle(magicCd, 20, 60, 100);
@@ -88,16 +91,22 @@ export class FuzzyAI {
     this.playerStance.normal = (!isDodging && !isDefending && !isHealing) ? 1 : 0;
 
     // 2. INFERENCE
-    const rRecharge = this.energy.empty;
+    const rRecharge = this.energy.empty; // High priority retreat
+    
+    // Aggressive Rules
     const rSniper = Math.min(this.energy.full, this.distance.far);
     const rMelee = Math.min(this.energy.low, this.distance.close);
     const rPressure = Math.min(this.playerHealth.healthy, this.distance.medium);
     const rDesperation = Math.min(this.health.critical, this.playerHealth.critical);
-    const rCornered = Math.min(this.distance.close, this.hazardProximity.inDanger);
     const rBerserk = this.health.critical;
     const rPunish = Math.min(this.playerMagic.spent, this.distance.medium);
-    const rFear = Math.min(this.playerMagic.armed, this.distance.close);
     const rBully = Math.min(this.health.healthy, this.distance.close);
+    // Energy Full -> Hostile override
+    const rFullEnergyAggro = this.energy.full * 0.8; 
+
+    // Passive/Defensive Rules
+    const rCornered = Math.min(this.distance.close, this.hazardProximity.inDanger);
+    const rFear = Math.min(this.playerMagic.armed, this.distance.close);
     
     // ACTION REACTION RULES
     const rPunishHeal = Math.min(this.playerStance.healing, this.distance.close);
@@ -106,9 +115,14 @@ export class FuzzyAI {
     const rFearShield = Math.min(this.playerStance.defensive, this.health.critical);
     const rStalking = Math.min(this.distance.far, this.playerMagic.spent);
 
-    const highAggro = Math.max(rSniper, rMelee, rPressure, rDesperation, rBerserk, rPunish, rBully, rPunishHeal, rStalking);
+    let highAggro = Math.max(rSniper, rMelee, rPressure, rDesperation, rBerserk, rPunish, rBully, rPunishHeal, rStalking, rFullEnergyAggro);
     const lowAggro = Math.max(rRecharge, rCornered, rFear, rWaitDodge, rFearShield);
     const medAggro = Math.max(0.3, rTacticalPressure * 0.7);
+
+    // PRIORITY LOGIC: If Energy is Empty (rRecharge is high), dampen aggression significantly
+    if (rRecharge > 0.5) {
+        highAggro = highAggro * (1 - rRecharge); 
+    }
 
     // 3. DEFUZZIFICATION
     const numerator = (lowAggro * 15) + (medAggro * 50) + (highAggro * 95);
@@ -122,8 +136,9 @@ export class FuzzyAI {
     this.aggressionFuzzy.aggressive = trapezoid(this.aggression, 55, 75, 100, 101);
 
     // State mapping with more nuances
-    if (rPunishHeal > 0.8) this.state = "INTERRUPTING";
-    else if (rWaitDodge > 0.8) this.state = "CONSERVING";
+    if (rRecharge > 0.8) this.state = "CONSERVING"; // Explicitly set state for behavior logic
+    else if (rPunishHeal > 0.8) this.state = "INTERRUPTING";
+    else if (rWaitDodge > 0.8) this.state = "WAITING";
     else if (rDesperation > 0.8) this.state = "FINAL STAND";
     else if (rCornered > 0.8) this.state = "CORNERED";
     else if (rBerserk > 0.8) this.state = "BERSERK";

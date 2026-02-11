@@ -23,6 +23,10 @@ function App() {
   const [theoryModal, setTheoryModal] = useState<'rules' | 'architecture' | 'math' | null>(null);
   const [isDashboardVisible, setIsDashboardVisible] = useState(true);
   
+  // Debug Controls State
+  const [manualEnemyEnergy, setManualEnemyEnergy] = useState(50);
+  const [isAutoRegen, setIsAutoRegen] = useState(true);
+
   const [playerState, setPlayerState] = useState<PlayerState>(INITIAL_PLAYER_STATE);
   const [enemies, setEnemies] = useState<EnemyState[]>([]);
 
@@ -67,6 +71,10 @@ function App() {
       setShowShop(false);
       setPlayerState(INITIAL_PLAYER_STATE);
       setGameStarted(true);
+      
+      // Reset Debug params on start
+      setManualEnemyEnergy(50);
+      setIsAutoRegen(true);
   };
 
   const handleReset = () => {
@@ -121,6 +129,8 @@ function App() {
                 onGameOver={handleGameOver}
                 playerStateExt={playerState}
                 onOpenShop={() => setShowShop(true)}
+                manualEnemyEnergy={manualEnemyEnergy}
+                isAutoRegen={isAutoRegen}
             />
         </Canvas>
       </div>
@@ -225,7 +235,13 @@ function App() {
 
       {isDashboardVisible && (
         <div className="absolute inset-y-0 left-0 z-20 pointer-events-auto">
-            <FuzzyDashboard metrics={metrics} />
+            <FuzzyDashboard 
+              metrics={metrics} 
+              manualEnemyEnergy={manualEnemyEnergy}
+              setManualEnemyEnergy={setManualEnemyEnergy}
+              isAutoRegen={isAutoRegen}
+              setIsAutoRegen={setIsAutoRegen}
+            />
         </div>
       )}
 

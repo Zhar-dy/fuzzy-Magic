@@ -326,8 +326,9 @@ const GuardianEnemy: React.FC<{
 
 const GameScene: React.FC<{ 
     onMetricsUpdate: any, onLog: any, onStatsUpdate: any, 
-    gameActive: boolean, onGameOver: any, playerStateExt: PlayerState, onOpenShop: () => void
-}> = ({ onMetricsUpdate, onLog, onStatsUpdate, gameActive, onGameOver, playerStateExt, onOpenShop }) => {
+    gameActive: boolean, onGameOver: any, playerStateExt: PlayerState, onOpenShop: () => void,
+    manualEnemyEnergy: number, isAutoRegen: boolean
+}> = ({ onMetricsUpdate, onLog, onStatsUpdate, gameActive, onGameOver, playerStateExt, onOpenShop, manualEnemyEnergy, isAutoRegen }) => {
   const playerRef = useRef({ 
     ...playerStateExt, 
     x: playerStateExt.position.x, 
@@ -370,6 +371,7 @@ const GameScene: React.FC<{
         const radius = 22 + Math.random() * 6; 
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
+        // Hostile from Start: Start with full energy
         newEnemies.push({ id, position: { x, y: 0, z }, hp: 100, maxHp: 100, energy: 100, color: '#ef4444' });
         
         enemyRefs.current[id] = React.createRef<THREE.Group>();
@@ -532,7 +534,11 @@ const GameScene: React.FC<{
         const dz = p.z - e.position.z;
         const dist = Math.sqrt(dx*dx + dz*dz);
         
+        // --- ENERGY LOGIC UPDATE ---
         let currentEnergy = e.energy;
+        if (!isAutoRegen) {
+             currentEnergy = manualEnemyEnergy;
+        }
 
         const metrics = ai.evaluate(
             Math.min(dist, 30), 
@@ -573,8 +579,11 @@ const GameScene: React.FC<{
                 nextVisualStates[e.id] = { isAttacking: true };
                 enemyAttackCooldowns.current[e.id] = 120;
                 
-                // Deplete Energy on attack
-                currentEnergy = Math.max(0, currentEnergy - 40);
+                // --- CONSUMPTION LOGIC ---
+                // Significant energy cost for attacking
+                if (isAutoRegen) {
+                     currentEnergy = Math.max(0, currentEnergy - 35);
+                }
 
                 let damage = 10;
                 if (p.isDefending) damage *= 0.2;
@@ -608,7 +617,21 @@ const GameScene: React.FC<{
         }
         newPos.x += separation.x;
         newPos.z += separation.z;
-        return { ...e, position: newPos, energy: Math.min(100, currentEnergy + 0.2) };
+
+        // --- DYNAMIC REGEN LOGIC ---
+        let nextEnergy = currentEnergy;
+        if (isAutoRegen) {
+             let regenRate = 0.03; // Lower base rate
+             if (metrics.stateDescription === 'CONSERVING' || metrics.stateDescription === 'PASSIVE') {
+                 regenRate = 0.15; // Reward backing off
+             }
+             nextEnergy = Math.min(100, currentEnergy + regenRate);
+        } else {
+             // If manual, strictly stick to input value
+             nextEnergy = manualEnemyEnergy;
+        }
+
+        return { ...e, position: newPos, energy: nextEnergy };
     });
 
     setEnemies(nextEnemies);
