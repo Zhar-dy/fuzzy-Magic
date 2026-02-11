@@ -9,7 +9,7 @@ import { MerchantAI } from './services/fuzzyLogic';
 
 const INITIAL_PLAYER_STATE: PlayerState = {
   position: { x: 0, y: 0, z: 5 },
-  hp: 100, maxHp: 100, magicCd: 0, maxMagicCd: 60, recentAttacks: 0, isAttacking: false,
+  hp: 100, maxHp: 100, magicCd: 0, maxMagicCd: 150, recentAttacks: 0, isAttacking: false,
   isDodging: false, isDefending: false, isHealing: false,
   gold: 0, totalGoldSpent: 0, damageMultiplier: 1.0
 };
@@ -109,7 +109,7 @@ function App() {
   };
 
   return (
-    <div className="relative w-full h-screen bg-[#09090b] overflow-hidden select-none font-sans text-zinc-100">
+    <div className="relative w-full h-screen bg-zinc-100 overflow-hidden select-none font-sans text-zinc-900">
       <div className="absolute inset-0 z-0">
         <Canvas shadows camera={{ position: [0, 15, 15], fov: 40 }}>
             <GameScene 

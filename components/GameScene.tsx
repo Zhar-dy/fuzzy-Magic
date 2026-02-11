@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { 
   Sparkles, 
@@ -6,8 +6,8 @@ import {
   Environment, 
   Float, 
   ContactShadows,
-  Stars,
-  Html
+  Html,
+  Grid
 } from '@react-three/drei';
 import * as THREE from 'three';
 import { FuzzyAI } from '../services/fuzzyLogic';
@@ -52,17 +52,56 @@ const HitEffect: React.FC<{ position: [number, number, number] }> = ({ position 
   );
 };
 
+const Scenery = React.memo(() => {
+  const props = useMemo(() => {
+    return new Array(40).fill(0).map((_, i) => {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 35 + Math.random() * 25; 
+        const x = Math.cos(angle) * dist;
+        const z = Math.sin(angle) * dist;
+        const scale = 0.8 + Math.random() * 2.5;
+        const type = Math.random();
+        return { x, z, scale, type };
+    });
+  }, []);
+
+  return (
+    <group>
+        {props.map((p, i) => (
+            <group key={i} position={[p.x, 0, p.z]} scale={p.scale}>
+                {p.type < 0.4 ? (
+                    <mesh position={[0, 1.5, 0]}>
+                        <coneGeometry args={[0.8, 3, 5]} />
+                        <meshStandardMaterial color="#3f6212" roughness={0.8} />
+                    </mesh>
+                ) : p.type < 0.7 ? (
+                    <mesh position={[0, 0.5, 0]} rotation={[Math.random(), Math.random(), Math.random()]}>
+                        <dodecahedronGeometry args={[1, 0]} />
+                        <meshStandardMaterial color="#57534e" roughness={0.9} />
+                    </mesh>
+                ) : (
+                    <mesh position={[0, 2, 0]}>
+                        <boxGeometry args={[0.8, 4, 0.8]} />
+                        <meshStandardMaterial color="#d6d3d1" roughness={0.6} />
+                    </mesh>
+                )}
+            </group>
+        ))}
+    </group>
+  );
+});
+
 const NPCMerchant: React.FC<{ position: [number, number, number] }> = ({ position }) => (
   <group position={position}>
     <Float speed={2} rotationIntensity={0.5} floatIntensity={1}>
       <mesh position={[0, 1.2, 0]}>
         <dodecahedronGeometry args={[0.7, 0]} />
-        <meshStandardMaterial color="#3f3f46" metalness={1} roughness={0} emissive="#06b6d4" emissiveIntensity={1} />
+        <meshStandardMaterial color="#52525b" metalness={1} roughness={0} emissive="#06b6d4" emissiveIntensity={1} />
       </mesh>
     </Float>
     <mesh position={[0, 0.2, 0]}>
       <cylinderGeometry args={[0.8, 0.8, 0.2, 8]} />
-      <meshStandardMaterial color="#18181b" />
+      <meshStandardMaterial color="#27272a" />
     </mesh>
     <pointLight position={[0, 1.5, 0]} color="#06b6d4" intensity={3} distance={10} />
     <Sparkles count={40} scale={3} size={4} speed={0.3} color="#06b6d4" />
@@ -200,7 +239,6 @@ const GuardianEnemy: React.FC<{
     }
   });
 
-  // Guard against null ref if initialization is lagging
   if (!enemyRef) return null;
 
   return (
@@ -264,7 +302,6 @@ const GameScene: React.FC<{
 
   const spawnEnemies = useCallback(() => {
     const newEnemies: EnemyState[] = [];
-    // Reset refs first to ensure clean state
     enemyRefs.current = {};
     aiInstances.current = {};
     enemyAttackCooldowns.current = {};
@@ -286,14 +323,16 @@ const GameScene: React.FC<{
   }, [onLog]);
 
   useEffect(() => {
-    if (gameActive && enemies.length === 0) spawnEnemies();
+    if (gameActive && enemies.length === 0) {
+        spawnEnemies();
+    }
   }, [gameActive, enemies.length, spawnEnemies]);
 
-  // Ensure gold in playerRef stays in sync with App state gold if it changes from outside
   useEffect(() => {
     playerRef.current.gold = playerStateExt.gold;
     playerRef.current.damageMultiplier = playerStateExt.damageMultiplier;
     playerRef.current.hp = playerStateExt.hp;
+    playerRef.current.maxMagicCd = playerStateExt.maxMagicCd; 
   }, [playerStateExt]);
 
   const handleEnemyDamage = useCallback((enemyId: string, dmg: number) => {
@@ -303,7 +342,7 @@ const GameScene: React.FC<{
         const newHp = Math.max(0, target.hp - dmg);
         if (newHp <= 0) {
             onLog(`The golem shatters. Golden coins remain.`, "combat");
-            playerRef.current.gold += 100; // FIX: Ensure gold is added to ref immediately
+            playerRef.current.gold += 100; 
             delete enemyRefs.current[enemyId];
             delete aiInstances.current[enemyId];
             delete enemyAttackCooldowns.current[enemyId];
@@ -338,7 +377,8 @@ const GameScene: React.FC<{
 
   const spawnPlayerProjectile = useCallback(() => {
     if (!gameActive || playerRef.current.magicCd > 0) return;
-    playerRef.current.magicCd = 60;
+    playerRef.current.magicCd = playerRef.current.maxMagicCd; 
+    
     const dir = new THREE.Vector3().subVectors(mousePosRef.current, new THREE.Vector3(playerRef.current.x, 0, playerRef.current.z)).normalize();
     setProjectiles(prev => [...prev, { 
         id: Date.now() + Math.random(),
@@ -388,6 +428,8 @@ const GameScene: React.FC<{
     if (!gameActive) return;
     const p = playerRef.current;
     
+    if (enemies.length === 0) return; 
+
     raycaster.setFromCamera(pointer, camera); 
     const intersect = new THREE.Vector3(); 
     raycaster.ray.intersectPlane(floorPlane.current, intersect); 
@@ -420,12 +462,14 @@ const GameScene: React.FC<{
             onLog("Vitality restored.", "info");
         }
     }
-    if (p.magicCd > 0) p.magicCd--;
+    
+    if (p.magicCd > 0 && !p.isHealing) {
+        p.magicCd--;
+    }
 
     const pDistSq = p.x*p.x + p.z*p.z;
     const isPlayerSafe = pDistSq < SAFE_ZONE_RADIUS**2;
 
-    // FIX: Calculate AI metrics before batched enemy state update to prevent empty graph at start
     let frameMetrics: FuzzyMetrics | null = null;
     const nextVisualStates: Record<string, { isAttacking: boolean }> = {};
     const nextEnemies = enemies.map(e => {
@@ -522,26 +566,37 @@ const GameScene: React.FC<{
     throttleCounter.current++;
     if (throttleCounter.current % 10 === 0) {
         if (frameMetrics) onMetricsUpdate(frameMetrics);
-        // FIX: Ensure the gold being sent back is the latest value from playerRef
         onStatsUpdate({ ...p, position: { x: p.x, y: 0, z: p.z } }, nextEnemies);
     }
   });
 
   return (
     <>
-      <color attach="background" args={['#09090b']} />
-      <fog attach="fog" args={['#09090b', 10, 50]} />
-      <Environment preset="night" />
+      <color attach="background" args={['#e0f2fe']} />
+      <fog attach="fog" args={['#e0f2fe', 15, 60]} />
+      <Environment preset="park" />
       
-      <ambientLight intensity={0.15} />
-      <directionalLight position={[10, 20, 10]} intensity={1.5} color="#06b6d4" castShadow />
+      <ambientLight intensity={0.7} />
+      <directionalLight position={[10, 20, 10]} intensity={1.8} color="#fff7ed" castShadow />
       
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <Scenery />
+
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, -0.01, 0]}>
           <planeGeometry args={[150, 150]} />
-          <meshStandardMaterial color="#0c0c0e" roughness={0.8} />
+          <meshStandardMaterial color="#ecfccb" roughness={0.8} />
       </mesh>
       
-      <Stars radius={100} depth={50} count={3000} factor={4} saturation={0} fade speed={1} />
+      <Grid 
+        infiniteGrid 
+        fadeDistance={50} 
+        sectionSize={2} 
+        cellSize={1} 
+        cellColor="#84cc16" 
+        sectionColor="#65a30d" 
+        cellThickness={0.5}
+        sectionThickness={1}
+        position={[0, 0.01, 0]}
+      />
       
       <Torus args={[SAFE_ZONE_RADIUS, 0.05, 16, 128]} rotation={[Math.PI/2, 0, 0]} position={[0, 0.05, 0]}>
         <meshStandardMaterial color="#06b6d4" emissive="#06b6d4" emissiveIntensity={4} transparent opacity={0.6} />
@@ -558,7 +613,6 @@ const GameScene: React.FC<{
         <GuardianEnemy 
           key={e.id} 
           enemyId={e.id} 
-          // FIX: Pass nullsafe ref access to avoid crashes if refs aren't ready
           enemyRef={enemyRefs.current[e.id] || null} 
           position={[e.position.x, 0, e.position.z]}
           isAttacking={enemyVisualStates[e.id]?.isAttacking || false}
@@ -589,10 +643,11 @@ const GameScene: React.FC<{
 
       <ContactShadows 
         position={[0, -0.01, 0]} 
-        opacity={0.8} 
+        opacity={0.4} 
         scale={40} 
-        blur={2.5} 
+        blur={2} 
         far={5} 
+        color="#000000"
       />
     </>
   );
