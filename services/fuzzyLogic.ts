@@ -30,7 +30,9 @@ export const FUZZY_RULES = [
   "IF PlayerMagic IS Armed AND Distance IS Close THEN Aggression IS Passive (Fear)",
   "IF Health IS Healthy AND Distance IS Close THEN Aggression IS Hostile (Bully)",
   "IF PlayerHP IS Wounded AND Health IS Healthy THEN Aggression IS Hostile (Predatory)",
-  "IF Hazard IS InDanger AND Health IS Healthy THEN Aggression IS Passive (Safe Reposition)"
+  "IF Hazard IS InDanger AND Health IS Healthy THEN Aggression IS Passive (Safe Reposition)",
+  "IF Health IS Healthy THEN Aggression IS Hostile (Confidence)",
+  "IF Health IS Wounded THEN Aggression IS Hostile (Survival Instinct)"
 ];
 
 export class FuzzyAI {
@@ -103,6 +105,10 @@ export class FuzzyAI {
     const rBully = Math.min(this.health.healthy, this.distance.close);
     // Energy Full -> Hostile override
     const rFullEnergyAggro = this.energy.full * 0.8; 
+    
+    // NEW RULES FOR AGGRESSION
+    const rHighHpAggro = this.health.healthy;
+    const rMidHpAggro = this.health.wounded;
 
     // Passive/Defensive Rules
     const rCornered = Math.min(this.distance.close, this.hazardProximity.inDanger);
@@ -115,7 +121,10 @@ export class FuzzyAI {
     const rFearShield = Math.min(this.playerStance.defensive, this.health.critical);
     const rStalking = Math.min(this.distance.far, this.playerMagic.spent);
 
-    let highAggro = Math.max(rSniper, rMelee, rPressure, rDesperation, rBerserk, rPunish, rBully, rPunishHeal, rStalking, rFullEnergyAggro);
+    let highAggro = Math.max(
+        rSniper, rMelee, rPressure, rDesperation, rBerserk, rPunish, rBully, rPunishHeal, rStalking, rFullEnergyAggro,
+        rHighHpAggro, rMidHpAggro
+    );
     const lowAggro = Math.max(rRecharge, rCornered, rFear, rWaitDodge, rFearShield);
     const medAggro = Math.max(0.3, rTacticalPressure * 0.7);
 

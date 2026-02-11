@@ -237,7 +237,7 @@ const GuardianEnemy: React.FC<{
   isAttacking: boolean;
   hp: number;
   maxHp: number;
-}> = ({ enemyId, enemyRef, position, isAttacking, hp, maxHp }) => {
+  }> = ({ enemyId, enemyRef, position, isAttacking, hp, maxHp }) => {
   const torsoRef = useRef<THREE.Mesh>(null);
   const leftArmRef = useRef<THREE.Mesh>(null);
   const rightArmRef = useRef<THREE.Mesh>(null);
@@ -427,6 +427,13 @@ const GameScene: React.FC<{
 
   const spawnPlayerProjectile = useCallback(() => {
     if (!gameActive || playerRef.current.magicCd > 0) return;
+
+    // Sanctuary Logic: Prevent attacks inside safe zone
+    const distSq = playerRef.current.x**2 + playerRef.current.z**2;
+    if (distSq < SAFE_ZONE_RADIUS**2) {
+        onLog("The Sanctuary forbids violence.", "info");
+        return;
+    }
     
     // Trigger Casting Animation
     playerRef.current.isAttacking = true; 
@@ -440,7 +447,7 @@ const GameScene: React.FC<{
         x: playerRef.current.x, z: playerRef.current.z, 
         vx: dir.x * 0.6, vz: dir.z * 0.6, color: "#06b6d4" 
     }]);
-  }, [gameActive]);
+  }, [gameActive, onLog]);
 
   const handleContextKey = useCallback(() => {
     const distSq = playerRef.current.x**2 + playerRef.current.z**2;
