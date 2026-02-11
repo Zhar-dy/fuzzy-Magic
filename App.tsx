@@ -119,7 +119,7 @@ function App() {
   };
 
   return (
-    <div className="relative w-full h-screen bg-zinc-100 overflow-hidden select-none font-sans text-zinc-900">
+    <div className="relative w-full h-screen bg-zinc-950 overflow-hidden select-none font-sans text-zinc-100">
       <div className="absolute inset-0 z-0">
         <Canvas shadows camera={{ position: [0, 15, 15], fov: 40 }}>
             <GameScene 

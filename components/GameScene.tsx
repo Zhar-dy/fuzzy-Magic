@@ -7,7 +7,8 @@ import {
   Float, 
   ContactShadows,
   Html,
-  Grid
+  Grid,
+  Stars
 } from '@react-three/drei';
 import * as THREE from 'three';
 import { FuzzyAI } from '../services/fuzzyLogic';
@@ -62,40 +63,87 @@ const HitEffect: React.FC<{ position: [number, number, number] }> = ({ position 
   );
 };
 
-const Scenery = React.memo(() => {
-  const props = useMemo(() => {
-    return new Array(40).fill(0).map((_, i) => {
-        const angle = Math.random() * Math.PI * 2;
-        const dist = 35 + Math.random() * 25; 
-        const x = Math.cos(angle) * dist;
-        const z = Math.sin(angle) * dist;
-        const scale = 0.8 + Math.random() * 2.5;
-        const type = Math.random();
-        return { x, z, scale, type };
-    });
-  }, []);
+const FantasyScenery = React.memo(() => {
+  const trees = useMemo(() => new Array(40).fill(0).map(() => ({
+      x: (Math.random() - 0.5) * 90,
+      z: (Math.random() - 0.5) * 90,
+      scale: 0.8 + Math.random() * 1.5,
+      type: Math.random()
+  })).filter(p => Math.sqrt(p.x**2 + p.z**2) > 8), []);
+
+  const rocks = useMemo(() => new Array(25).fill(0).map(() => ({
+      x: (Math.random() - 0.5) * 70,
+      z: (Math.random() - 0.5) * 70,
+      scale: 0.4 + Math.random() * 1.5,
+      rot: [Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI]
+  })).filter(p => Math.sqrt(p.x**2 + p.z**2) > 8), []);
+
+  const crystals = useMemo(() => new Array(12).fill(0).map(() => ({
+      x: (Math.random() - 0.5) * 60,
+      z: (Math.random() - 0.5) * 60,
+      color: Math.random() > 0.6 ? "#a855f7" : "#06b6d4" // Purple or Cyan
+  })).filter(p => Math.sqrt(p.x**2 + p.z**2) > 12), []);
+  
+  const grass = useMemo(() => new Array(150).fill(0).map(() => ({
+      x: (Math.random() - 0.5) * 80,
+      z: (Math.random() - 0.5) * 80,
+      scale: 0.5 + Math.random(),
+      rot: Math.random() * Math.PI
+  })).filter(p => Math.sqrt(p.x**2 + p.z**2) > 6), []);
 
   return (
     <group>
-        {props.map((p, i) => (
-            <group key={i} position={[p.x, 0, p.z]} scale={p.scale}>
-                {p.type < 0.4 ? (
-                    <mesh position={[0, 1.5, 0]}>
-                        <coneGeometry args={[0.8, 3, 5]} />
-                        <meshStandardMaterial color="#3f6212" roughness={0.8} />
-                    </mesh>
-                ) : p.type < 0.7 ? (
-                    <mesh position={[0, 0.5, 0]} rotation={[Math.random(), Math.random(), Math.random()]}>
-                        <dodecahedronGeometry args={[1, 0]} />
-                        <meshStandardMaterial color="#57534e" roughness={0.9} />
-                    </mesh>
-                ) : (
-                    <mesh position={[0, 2, 0]}>
-                        <boxGeometry args={[0.8, 4, 0.8]} />
-                        <meshStandardMaterial color="#d6d3d1" roughness={0.6} />
-                    </mesh>
-                )}
+        {/* Fantasy Trees */}
+        {trees.map((t, i) => (
+            <group key={`tree-${i}`} position={[t.x, 0, t.z]} scale={t.scale}>
+                 {/* Trunk */}
+                <mesh position={[0, 0.6, 0]}>
+                    <cylinderGeometry args={[0.15, 0.25, 1.2, 7]} />
+                    <meshStandardMaterial color="#1c1917" roughness={0.9} />
+                </mesh>
+                {/* Layered Foliage */}
+                <mesh position={[0, 1.5, 0]}>
+                    <coneGeometry args={[1.0, 1.8, 7]} />
+                    <meshStandardMaterial color="#0c4a6e" roughness={0.8} /> 
+                </mesh>
+                <mesh position={[0, 2.5, 0]}>
+                    <coneGeometry args={[0.7, 1.5, 7]} />
+                    <meshStandardMaterial color="#075985" roughness={0.8} />
+                </mesh>
             </group>
+        ))}
+
+        {/* Scattered Rocks */}
+        {rocks.map((r, i) => (
+            <mesh key={`rock-${i}`} position={[r.x, r.scale * 0.4, r.z]} rotation={r.rot as any} scale={r.scale}>
+                <dodecahedronGeometry args={[0.6, 0]} />
+                <meshStandardMaterial color="#27272a" roughness={0.6} />
+            </mesh>
+        ))}
+
+        {/* Glowing Crystals */}
+        {crystals.map((c, i) => (
+            <group key={`crystal-${i}`} position={[c.x, 0, c.z]}>
+                <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
+                    <mesh position={[0, 0.8, 0]}>
+                        <octahedronGeometry args={[0.4, 0]} />
+                        <meshStandardMaterial color={c.color} emissive={c.color} emissiveIntensity={3} toneMapped={false} />
+                    </mesh>
+                </Float>
+                <pointLight position={[0, 1, 0]} color={c.color} intensity={2} distance={6} decay={2} />
+                <mesh position={[0, 0.1, 0]} rotation={[0,0,0]}>
+                    <cylinderGeometry args={[0.1, 0.2, 0.2, 6]} />
+                    <meshStandardMaterial color="#27272a" />
+                </mesh>
+            </group>
+        ))}
+
+        {/* Grass Blades */}
+        {grass.map((g, i) => (
+             <mesh key={`grass-${i}`} position={[g.x, 0, g.z]} rotation={[0, g.rot, 0]} scale={[1, g.scale, 1]}>
+                <coneGeometry args={[0.08, 0.5, 4]} />
+                <meshStandardMaterial color="#1e293b" />
+             </mesh>
         ))}
     </group>
   );
@@ -235,7 +283,7 @@ const GuardianEnemy: React.FC<{
       } else {
           // Dim body when low energy
           const energyFactor = Math.max(0.3, energy / 100);
-          torsoRef.current.material.color.setHSL(0.07, 0.05, 0.45 * energyFactor);
+          torsoRef.current.material.color.setHSL(0.07, 0.05, 0.25 * energyFactor); // Darker base for dark mode
           torsoRef.current.material.emissive.setHex(0x000000);
           torsoRef.current.material.emissiveIntensity = 0;
       }
@@ -276,14 +324,14 @@ const GuardianEnemy: React.FC<{
       <group>
         <mesh ref={torsoRef} position={[0, 1.1, 0]}>
             <dodecahedronGeometry args={[0.7, 0]} />
-            <meshStandardMaterial color="#78716c" roughness={0.9} />
+            <meshStandardMaterial color="#44403c" roughness={0.9} /> {/* Darker stone */}
         </mesh>
 
         {/* Head */}
         <group position={[0, 1.9, 0]}>
             <mesh>
                 <boxGeometry args={[0.5, 0.5, 0.5]} />
-                <meshStandardMaterial color="#57534e" roughness={0.9} />
+                <meshStandardMaterial color="#292524" roughness={0.9} /> {/* Darker stone */}
             </mesh>
             {/* Glowing Eyes Group */}
             <group ref={eyesRef}>
@@ -300,11 +348,11 @@ const GuardianEnemy: React.FC<{
 
         <mesh ref={leftArmRef} position={[-0.9, 1.2, 0]}>
             <boxGeometry args={[0.5, 0.8, 0.5]} />
-            <meshStandardMaterial color="#78716c" roughness={0.9} />
+            <meshStandardMaterial color="#44403c" roughness={0.9} /> {/* Darker stone */}
         </mesh>
         <mesh ref={rightArmRef} position={[0.9, 1.2, 0]}>
             <boxGeometry args={[0.5, 0.8, 0.5]} />
-            <meshStandardMaterial color="#78716c" roughness={0.9} />
+            <meshStandardMaterial color="#44403c" roughness={0.9} /> {/* Darker stone */}
         </mesh>
       </group>
       
@@ -342,6 +390,8 @@ const GameScene: React.FC<{
   const enemyRefs = useRef<{ [key: string]: React.RefObject<THREE.Group> }>({});
   const aiInstances = useRef<{ [key: string]: FuzzyAI }>({});
   const enemyAttackCooldowns = useRef<Record<string, number>>({});
+  const damageQueue = useRef<Record<string, number>>({});
+  const roundRef = useRef(0);
   
   const throttleCounter = useRef(0);
   const mousePosRef = useRef(new THREE.Vector3());
@@ -354,13 +404,14 @@ const GameScene: React.FC<{
   const projectilesGroupRef = useRef<THREE.Group>(null);
   const projectilesData = useRef<Array<{ mesh: THREE.Mesh; velocity: THREE.Vector3; id: number; startTime: number }>>([]);
 
-  const spawnEnemies = useCallback(() => {
+  const spawnEnemies = useCallback((count: number) => {
     const newEnemies: EnemyState[] = [];
     enemyRefs.current = {};
     aiInstances.current = {};
     enemyAttackCooldowns.current = {};
+    damageQueue.current = {};
 
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < count; i++) {
         const id = `golem_${Date.now()}_${i}`;
         const angle = Math.random() * Math.PI * 2;
         const radius = 22 + Math.random() * 6; 
@@ -374,7 +425,7 @@ const GameScene: React.FC<{
         enemyAttackCooldowns.current[id] = 0;
     }
     setEnemies(newEnemies);
-    onLog("The stone giants awaken. Steel your heart.", "info");
+    onLog(`Wave ${count} Initiated. ${count} Hostiles Detected.`, "info");
   }, [onLog]);
 
   // Handle Game Reset Signal (Optimized Restart)
@@ -392,16 +443,19 @@ const GameScene: React.FC<{
         }
         projectilesData.current = [];
 
-        // Respawn Enemies
-        spawnEnemies();
+        // Reset Round & Enemies (but don't spawn yet, wait for auto-spawn effect)
+        roundRef.current = 0;
+        setEnemies([]);
     }
-  }, [resetSignal, spawnEnemies]);
+  }, [resetSignal]);
 
+  // Handle Round/Wave Logic (Spawns next wave when enemies are cleared)
   useEffect(() => {
-    if (gameActive && enemies.length === 0 && resetSignal === 0) {
-        spawnEnemies();
+    if (gameActive && enemies.length === 0) {
+        roundRef.current += 1;
+        spawnEnemies(roundRef.current);
     }
-  }, [gameActive, enemies.length, spawnEnemies, resetSignal]);
+  }, [gameActive, enemies.length, spawnEnemies]);
 
   useEffect(() => {
     playerRef.current.gold = playerStateExt.gold;
@@ -411,21 +465,9 @@ const GameScene: React.FC<{
   }, [playerStateExt]);
 
   const handleEnemyDamage = useCallback((enemyId: string, dmg: number) => {
-    setEnemies(prev => {
-        const target = prev.find(e => e.id === enemyId);
-        if (!target) return prev;
-        const newHp = Math.max(0, target.hp - dmg);
-        if (newHp <= 0) {
-            onLog(`The golem shatters. Golden coins remain.`, "combat");
-            playerRef.current.gold += 100; 
-            delete enemyRefs.current[enemyId];
-            delete aiInstances.current[enemyId];
-            delete enemyAttackCooldowns.current[enemyId];
-            return prev.filter(e => e.id !== enemyId);
-        }
-        return prev.map(e => e.id === enemyId ? { ...e, hp: newHp } : e);
-    });
-  }, [onLog]);
+    // Queue damage to be applied during the frame loop to prevent state overwrite race conditions
+    damageQueue.current[enemyId] = (damageQueue.current[enemyId] || 0) + dmg;
+  }, []);
 
   const performDodge = useCallback(() => {
       if (!gameActive || playerRef.current.dodgeTimer > 0) return;
@@ -616,6 +658,9 @@ const GameScene: React.FC<{
 
     let frameMetrics: FuzzyMetrics | null = null;
     const nextVisualStates: Record<string, { isAttacking: boolean }> = {};
+    
+    let goldReward = 0;
+    
     const nextEnemies = enemies.map(e => {
         const ai = aiInstances.current[e.id];
         if (!ai) return e;
@@ -629,10 +674,18 @@ const GameScene: React.FC<{
         if (!isAutoRegen) {
              currentEnergy = manualEnemyEnergy;
         }
+        
+        // --- APPLY DAMAGE QUEUE ---
+        let currentHp = e.hp;
+        const pendingDamage = damageQueue.current[e.id] || 0;
+        if (pendingDamage > 0) {
+            currentHp = Math.max(0, currentHp - pendingDamage);
+            damageQueue.current[e.id] = 0; // Clear buffer
+        }
 
         const metrics = ai.evaluate(
             Math.min(dist, 30), 
-            (e.hp / 50) * 100, 
+            (currentHp / 50) * 100, 
             p.hp, 
             p.magicCd, 
             10, 
@@ -721,8 +774,24 @@ const GameScene: React.FC<{
              nextEnergy = manualEnemyEnergy;
         }
 
-        return { ...e, position: newPos, energy: nextEnergy };
+        return { ...e, position: newPos, energy: nextEnergy, hp: currentHp };
+    }).filter(e => {
+        // --- DEATH LOGIC ---
+        if (e.hp <= 0) {
+            goldReward += 100;
+            delete enemyRefs.current[e.id];
+            delete aiInstances.current[e.id];
+            delete enemyAttackCooldowns.current[e.id];
+            delete damageQueue.current[e.id];
+            return false;
+        }
+        return true;
     });
+
+    if (goldReward > 0) {
+        playerRef.current.gold += goldReward;
+        onLog(`The golem shatters. Golden coins remain.`, "combat");
+    }
 
     setEnemies(nextEnemies);
     setEnemyVisualStates(nextVisualStates);
@@ -747,34 +816,36 @@ const GameScene: React.FC<{
 
   return (
     <>
-      <color attach="background" args={['#e0f2fe']} />
-      <fog attach="fog" args={['#e0f2fe', 15, 60]} />
-      <Environment preset="park" />
+      <color attach="background" args={['#050505']} />
+      <fog attach="fog" args={['#050505', 8, 45]} />
+      <Environment preset="city" />
+      <Stars radius={100} depth={50} count={3000} factor={4} saturation={0} fade speed={0.5} />
       
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[10, 20, 10]} intensity={1.8} color="#fff7ed" castShadow />
+      <ambientLight intensity={0.2} color="#818cf8" />
+      <directionalLight position={[10, 20, 10]} intensity={0.8} color="#a5b4fc" castShadow />
       
-      <Scenery />
+      <FantasyScenery />
+      <Sparkles count={300} scale={60} size={4} speed={0.3} opacity={0.4} color="#a5b4fc" />
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, -0.01, 0]}>
           <planeGeometry args={[150, 150]} />
-          <meshStandardMaterial color="#ecfccb" roughness={0.8} />
+          <meshStandardMaterial color="#09090b" roughness={0.8} metalness={0.2} />
       </mesh>
       
       <Grid 
         infiniteGrid 
-        fadeDistance={50} 
+        fadeDistance={40} 
         sectionSize={2} 
         cellSize={1} 
-        cellColor="#84cc16" 
-        sectionColor="#65a30d" 
+        cellColor="#27272a" 
+        sectionColor="#3f3f46" 
         cellThickness={0.5}
         sectionThickness={1}
         position={[0, 0.01, 0]}
       />
       
       <Torus args={[SAFE_ZONE_RADIUS, 0.05, 16, 128]} rotation={[Math.PI/2, 0, 0]} position={[0, 0.05, 0]}>
-        <meshStandardMaterial color="#06b6d4" emissive="#06b6d4" emissiveIntensity={4} transparent opacity={0.6} />
+        <meshStandardMaterial color="#0ea5e9" emissive="#0ea5e9" emissiveIntensity={2} transparent opacity={0.4} />
       </Torus>
 
       <NPCMerchant position={[0, 0, 0]} />
@@ -806,7 +877,7 @@ const GameScene: React.FC<{
 
       <ContactShadows 
         position={[0, -0.01, 0]} 
-        opacity={0.4} 
+        opacity={0.7} 
         scale={40} 
         blur={2} 
         far={5} 
