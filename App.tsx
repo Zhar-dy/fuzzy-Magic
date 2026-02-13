@@ -104,7 +104,8 @@ const buyItem = (type: 'hp' | 'str' | 'dmg') => {
         ...p,
         gold: p.gold - price,
         totalGoldSpent: p.totalGoldSpent + price,
-        hp: type === 'hp' ? Math.min(100, p.hp + 40) : p.hp,
+        // Fixed: Use maxHp instead of hardcoded 100
+        hp: type === 'hp' ? Math.min(p.maxHp, p.hp + 40) : p.hp,
         damageMultiplier: type === 'str' ? p.damageMultiplier + 0.2 : (type === 'dmg' ? p.damageMultiplier + 0.25 : p.damageMultiplier)
       }));
       

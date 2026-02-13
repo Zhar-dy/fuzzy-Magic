@@ -4,15 +4,17 @@ import { FuzzyMetrics } from '../types';
 export function triangle(x: number, a: number, b: number, c: number): number {
   if (x <= a || x >= c) return 0;
   if (x === b) return 1;
-  if (x < b) return (x - a) / (b - a);
-  return (c - x) / (c - b);
+  // Guard for division by zero (vertical slopes)
+  if (x < b) return (b === a) ? 1 : (x - a) / (b - a);
+  return (c === b) ? 1 : (c - x) / (c - b);
 }
 
 export function trapezoid(x: number, a: number, b: number, c: number, d: number): number {
   if (x <= a || x >= d) return 0;
   if (x >= b && x <= c) return 1;
-  if (x < b) return (x - a) / (b - a);
-  return (d - x) / (d - c);
+  // Guard for division by zero (vertical slopes)
+  if (x < b) return (b === a) ? 1 : (x - a) / (b - a);
+  return (d === c) ? 1 : (d - x) / (d - c);
 }
 
 // --- DATA DRIVEN RULE ARCHITECTURE ---
@@ -93,7 +95,8 @@ export class FuzzyAI {
     // 1. FUZZIFICATION
     this.distance.close = trapezoid(dist, -1, 0, 4, 8); 
     this.distance.medium = triangle(dist, 4, 10, 16);
-    this.distance.far = trapezoid(dist, 10, 16, 100, 100);
+    // Fixed: Use Infinity for Far set so it doesn't drop off after 100m
+    this.distance.far = trapezoid(dist, 10, 16, Infinity, Infinity);
 
     this.health.critical = trapezoid(hpPercent, -1, 0, 30, 40);
     this.health.wounded = triangle(hpPercent, 30, 50, 70);
@@ -222,7 +225,8 @@ export class FuzzyAI {
 
 export class MerchantAI {
   evaluate(totalGoldSpent: number, playerHpPct: number): number {
-    const vipLevel = trapezoid(totalGoldSpent, 100, 300, 1000, 5000); 
+    // Fixed: Use Infinity to keep VIP discount at max level for anything over 1000 spent
+    const vipLevel = trapezoid(totalGoldSpent, 100, 300, Infinity, Infinity); 
     const sympathy = trapezoid(playerHpPct, -1, 0, 30, 50);
 
     const vipDiscount = vipLevel * 30;
