@@ -1,3 +1,4 @@
+
 import React from 'react';
 import FuzzyGraph from './FuzzyGraph';
 import { FuzzyMetrics } from '../types';
@@ -8,6 +9,7 @@ interface FuzzyDashboardProps {
   setManualEnemyEnergy: (val: number) => void;
   isAutoRegen: boolean;
   setIsAutoRegen: (val: boolean) => void;
+  onOpenDetails: () => void;
 }
 
 // Decision Matrix Aesthetic Palette
@@ -42,6 +44,7 @@ const DEFAULT_METRICS: FuzzyMetrics = {
     aggressionOutput: 0,
     stateDescription: "SEARCHING",
     activeRuleDescription: "Initializing...",
+    activeRules: [],
     playerStance: { normal: 1, defensive: 0, dodging: 0, healing: 0 },
     playerAggro: 0, playerMagic: 0, hazardProximity: 0,
     fuzzyDist: { close: 0, medium: 0, far: 1 },
@@ -57,7 +60,8 @@ const DEFAULT_METRICS: FuzzyMetrics = {
 const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({ 
     metrics, 
     manualEnemyEnergy, setManualEnemyEnergy, 
-    isAutoRegen, setIsAutoRegen 
+    isAutoRegen, setIsAutoRegen,
+    onOpenDetails
 }) => {
   // Use default metrics if null to ensure dashboard always renders structure
   const activeMetrics = metrics || DEFAULT_METRICS;
@@ -126,6 +130,14 @@ const FuzzyDashboard: React.FC<FuzzyDashboardProps> = ({
                 {activeMetrics.stateDescription}
             </span>
         </div>
+
+        <button 
+            onClick={onOpenDetails}
+            className="w-full mt-4 bg-zinc-900 hover:bg-zinc-800 text-cyan-400 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border border-cyan-900/30 transition-all flex items-center justify-center gap-2 group shadow-lg"
+        >
+            <span>Live Logic Pipeline</span>
+            <span className="group-hover:translate-x-1 transition-transform">→</span>
+        </button>
       </div>
 
       <div className="space-y-4">

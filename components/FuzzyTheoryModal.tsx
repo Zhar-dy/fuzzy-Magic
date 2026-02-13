@@ -1,19 +1,22 @@
+
 import React from 'react';
 import { FUZZY_RULES } from '../services/fuzzyLogic';
+import { FuzzyMetrics } from '../types';
 
 interface FuzzyTheoryModalProps {
   type: 'rules' | 'architecture' | 'math';
   onClose: () => void;
+  metrics: FuzzyMetrics | null;
 }
 
-const FuzzyTheoryModal: React.FC<FuzzyTheoryModalProps> = ({ type, onClose }) => {
+const FuzzyTheoryModal: React.FC<FuzzyTheoryModalProps> = ({ type, onClose, metrics }) => {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 pointer-events-auto">
       <div className="absolute inset-0 bg-zinc-950/90 backdrop-blur-md" onClick={onClose} />
       <div className="relative bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50">
           <h2 className="text-xl font-black text-white tracking-tighter uppercase italic">
-            {type === 'rules' ? 'Logic Ruleset' : type === 'math' ? 'The Fuzzy Pipeline' : 'System Architecture'}
+            {type === 'rules' ? 'Logic Ruleset' : type === 'math' ? 'The Live Logic Pipeline' : 'System Architecture'}
           </h2>
           <button onClick={onClose} className="text-zinc-600 hover:text-white text-3xl transition-colors">&times;</button>
         </div>
@@ -31,7 +34,7 @@ const FuzzyTheoryModal: React.FC<FuzzyTheoryModalProps> = ({ type, onClose }) =>
           )}
 
           {/* VISUAL PIPELINE DASHBOARD */}
-          {type === 'math' && (
+          {type === 'math' && metrics && (
             <div className="flex flex-col gap-8 relative">
               {/* Connecting Line */}
               <div className="absolute left-6 top-8 bottom-8 w-0.5 bg-gradient-to-b from-blue-500 via-purple-500 to-emerald-500 opacity-20 hidden md:block" />
@@ -42,16 +45,19 @@ const FuzzyTheoryModal: React.FC<FuzzyTheoryModalProps> = ({ type, onClose }) =>
                     <div className="w-2 h-2 bg-blue-500 rounded-full" />
                  </div>
                  <div className="bg-zinc-950/50 border border-blue-900/30 p-5 rounded-2xl">
-                    <h3 className="text-blue-400 font-black text-xs uppercase tracking-widest mb-3">01. Crisp Input</h3>
-                    <p className="text-[10px] text-zinc-500 mb-4">Raw sensor data from the game engine is collected. This data is precise but lacks context.</p>
-                    <div className="flex gap-4">
+                    <h3 className="text-blue-400 font-black text-xs uppercase tracking-widest mb-3">01. Crisp Input (Real-time Sensors)</h3>
+                    <div className="flex gap-4 flex-wrap">
                         <div className="bg-black/50 border border-zinc-800 p-3 rounded-lg text-center min-w-[100px]">
                             <span className="block text-[9px] text-zinc-500 uppercase font-bold">Distance</span>
-                            <span className="text-xl font-mono text-white">4.2<span className="text-xs text-zinc-600">m</span></span>
+                            <span className="text-xl font-mono text-white">{metrics.distance.toFixed(1)}<span className="text-xs text-zinc-600">m</span></span>
                         </div>
                         <div className="bg-black/50 border border-zinc-800 p-3 rounded-lg text-center min-w-[100px]">
                             <span className="block text-[9px] text-zinc-500 uppercase font-bold">Energy</span>
-                            <span className="text-xl font-mono text-white">15<span className="text-xs text-zinc-600">%</span></span>
+                            <span className="text-xl font-mono text-white">{metrics.energyPct.toFixed(0)}<span className="text-xs text-zinc-600">%</span></span>
+                        </div>
+                         <div className="bg-black/50 border border-zinc-800 p-3 rounded-lg text-center min-w-[100px]">
+                            <span className="block text-[9px] text-zinc-500 uppercase font-bold">Health</span>
+                            <span className="text-xl font-mono text-white">{metrics.healthPct.toFixed(0)}<span className="text-xs text-zinc-600">%</span></span>
                         </div>
                     </div>
                  </div>
@@ -63,30 +69,58 @@ const FuzzyTheoryModal: React.FC<FuzzyTheoryModalProps> = ({ type, onClose }) =>
                     <div className="w-2 h-2 bg-blue-400 rounded-full" />
                  </div>
                  <div className="bg-zinc-950/50 border border-blue-900/30 p-5 rounded-2xl">
-                    <h3 className="text-blue-300 font-black text-xs uppercase tracking-widest mb-3">02. Fuzzification</h3>
-                    <p className="text-[10px] text-zinc-500 mb-4">Inputs are mapped to overlapping linguistic curves (Sets). A single value can belong to multiple sets.</p>
+                    <h3 className="text-blue-300 font-black text-xs uppercase tracking-widest mb-3">02. Fuzzification (Membership)</h3>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="relative h-16 bg-zinc-900/50 rounded-lg border border-zinc-800 flex items-end px-2 pb-2">
-                             {/* Mock Graph */}
-                             <div className="absolute inset-0 flex items-end opacity-20">
-                                <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-                                    <polygon points="0,100 20,0 40,100" fill="#3b82f6" />
-                                    <polygon points="30,100 50,0 70,100" fill="#a855f7" />
-                                </svg>
-                             </div>
-                             <div className="w-full flex justify-between text-[9px] font-mono relative z-10">
-                                 <span className="text-blue-400">Close: 0.85</span>
-                                 <span className="text-purple-400">Med: 0.15</span>
+                        <div className="bg-zinc-900/50 rounded-lg border border-zinc-800 p-3">
+                             <div className="text-[9px] text-zinc-500 uppercase font-bold mb-2">Distance Sets</div>
+                             <div className="space-y-1">
+                                <div className="flex justify-between items-center text-[9px] font-mono">
+                                    <span className="text-red-400">Close</span>
+                                    <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-red-500" style={{ width: `${metrics.fuzzyDist.close * 100}%` }} />
+                                    </div>
+                                    <span className="w-8 text-right text-zinc-300">{metrics.fuzzyDist.close.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-[9px] font-mono">
+                                    <span className="text-amber-400">Medium</span>
+                                    <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-amber-500" style={{ width: `${metrics.fuzzyDist.medium * 100}%` }} />
+                                    </div>
+                                    <span className="w-8 text-right text-zinc-300">{metrics.fuzzyDist.medium.toFixed(2)}</span>
+                                </div>
+                                 <div className="flex justify-between items-center text-[9px] font-mono">
+                                    <span className="text-teal-400">Far</span>
+                                    <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-teal-500" style={{ width: `${metrics.fuzzyDist.far * 100}%` }} />
+                                    </div>
+                                    <span className="w-8 text-right text-zinc-300">{metrics.fuzzyDist.far.toFixed(2)}</span>
+                                </div>
                              </div>
                         </div>
-                         <div className="relative h-16 bg-zinc-900/50 rounded-lg border border-zinc-800 flex items-end px-2 pb-2">
-                             <div className="absolute inset-0 flex items-end opacity-20">
-                                <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-                                    <polygon points="0,100 0,0 30,100" fill="#ef4444" />
-                                </svg>
-                             </div>
-                             <div className="w-full flex justify-between text-[9px] font-mono relative z-10">
-                                 <span className="text-red-400">Low Energy: 1.0</span>
+                        <div className="bg-zinc-900/50 rounded-lg border border-zinc-800 p-3">
+                             <div className="text-[9px] text-zinc-500 uppercase font-bold mb-2">Energy Sets</div>
+                             <div className="space-y-1">
+                                <div className="flex justify-between items-center text-[9px] font-mono">
+                                    <span className="text-red-400">Empty</span>
+                                    <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-red-500" style={{ width: `${metrics.fuzzyEnergy.empty * 100}%` }} />
+                                    </div>
+                                    <span className="w-8 text-right text-zinc-300">{metrics.fuzzyEnergy.empty.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-[9px] font-mono">
+                                    <span className="text-orange-400">Low</span>
+                                    <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-orange-500" style={{ width: `${metrics.fuzzyEnergy.low * 100}%` }} />
+                                    </div>
+                                    <span className="w-8 text-right text-zinc-300">{metrics.fuzzyEnergy.low.toFixed(2)}</span>
+                                </div>
+                                 <div className="flex justify-between items-center text-[9px] font-mono">
+                                    <span className="text-emerald-400">Full</span>
+                                    <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-emerald-500" style={{ width: `${metrics.fuzzyEnergy.full * 100}%` }} />
+                                    </div>
+                                    <span className="w-8 text-right text-zinc-300">{metrics.fuzzyEnergy.full.toFixed(2)}</span>
+                                </div>
                              </div>
                         </div>
                     </div>
@@ -99,18 +133,25 @@ const FuzzyTheoryModal: React.FC<FuzzyTheoryModalProps> = ({ type, onClose }) =>
                     <div className="w-2 h-2 bg-purple-500 rounded-full" />
                  </div>
                  <div className="bg-zinc-950/50 border border-purple-900/30 p-5 rounded-2xl">
-                    <h3 className="text-purple-400 font-black text-xs uppercase tracking-widest mb-3">03. Inference Engine</h3>
-                    <p className="text-[10px] text-zinc-500 mb-4">Rules are evaluated. The "Strength" of a rule is limited by its weakest input (MIN operator).</p>
+                    <h3 className="text-purple-400 font-black text-xs uppercase tracking-widest mb-3">03. Inference Engine (Active Rules)</h3>
                     <div className="space-y-2 font-mono text-[10px]">
-                        <div className="bg-zinc-900 p-3 rounded border-l-2 border-purple-500 flex justify-between items-center opacity-50">
-                            <span>IF <span className="text-blue-400">Close (0.85)</span> AND <span className="text-emerald-400">Healthy (1.0)</span> THEN <span className="text-red-500">Attack</span></span>
-                            <span className="bg-zinc-800 px-2 py-1 rounded text-zinc-400">Strength: 0.85</span>
-                        </div>
-                        <div className="bg-zinc-900 p-3 rounded border-l-2 border-red-500 flex justify-between items-center shadow-[0_0_15px_rgba(239,68,68,0.1)]">
-                             {/* Winner */}
-                            <span>IF <span className="text-orange-400">Low Energy (1.0)</span> THEN <span className="text-blue-400">Retreat</span></span>
-                            <span className="bg-red-900/30 text-red-400 px-2 py-1 rounded font-bold border border-red-900/50">Strength: 1.0</span>
-                        </div>
+                        {metrics.activeRules.map((rule, i) => (
+                             <div key={i} className={`bg-zinc-900 p-3 rounded border-l-2 flex justify-between items-center transition-all ${i === 0 ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.1)] opacity-100' : 'border-zinc-700 opacity-60'}`}>
+                                <span className={i === 0 ? 'text-white font-bold' : 'text-zinc-400'}>{rule.name}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                                        rule.type === 'aggressive' ? 'bg-red-900/30 text-red-500' : 
+                                        rule.type === 'passive' ? 'bg-blue-900/30 text-blue-500' : 'bg-purple-900/30 text-purple-500'
+                                    }`}>{rule.type}</span>
+                                    <span className="bg-zinc-800 px-2 py-1 rounded text-zinc-400 min-w-[80px] text-center">Str: {rule.strength.toFixed(2)}</span>
+                                </div>
+                             </div>
+                        ))}
+                        {metrics.activeRules.length === 0 && (
+                            <div className="p-4 text-center text-zinc-500 italic border border-zinc-800 border-dashed rounded-lg">
+                                No specific rules firing. System defaulting to base equilibrium.
+                            </div>
+                        )}
                     </div>
                  </div>
               </div>
@@ -121,30 +162,40 @@ const FuzzyTheoryModal: React.FC<FuzzyTheoryModalProps> = ({ type, onClose }) =>
                     <div className="w-2 h-2 bg-emerald-500 rounded-full" />
                  </div>
                  <div className="bg-zinc-950/50 border border-emerald-900/30 p-5 rounded-2xl">
-                    <h3 className="text-emerald-400 font-black text-xs uppercase tracking-widest mb-3">04. Defuzzification (Output)</h3>
-                    <p className="text-[10px] text-zinc-500 mb-4">All active rules contribute to the final decision. The centroid (Center of Mass) of the aggregate area determines the final action value.</p>
+                    <h3 className="text-emerald-400 font-black text-xs uppercase tracking-widest mb-3">04. Defuzzification (Centroid)</h3>
                     <div className="flex items-center gap-6">
-                         <div className="flex-1 bg-zinc-900 h-2 rounded-full overflow-hidden flex">
+                         <div className="flex-1 bg-zinc-900 h-4 rounded-full overflow-hidden flex relative border border-zinc-800">
                             {/* Visual representation of weighted sum */}
-                            <div className="w-[20%] bg-blue-500/30"></div>
-                            <div className="w-[60%] bg-red-500/10"></div>
-                            <div className="w-[20%] bg-emerald-500/10"></div>
+                            <div className="h-full bg-blue-500/50 transition-all duration-300" style={{ width: `${metrics.fuzzyAggression.passive * 33}%` }}></div>
+                            <div className="h-full bg-purple-500/50 transition-all duration-300" style={{ width: `${metrics.fuzzyAggression.neutral * 33}%` }}></div>
+                            <div className="h-full bg-red-500/50 transition-all duration-300" style={{ width: `${metrics.fuzzyAggression.aggressive * 33}%` }}></div>
                             
                             {/* Centroid Marker */}
-                            <div className="w-1 h-full bg-white relative">
-                                <div className="absolute -top-1 -left-1 w-3 h-3 bg-white rounded-full"></div>
+                            <div className="w-0.5 h-full bg-white absolute top-0 bottom-0 shadow-[0_0_10px_white] transition-all duration-300 z-10" style={{ left: `${metrics.aggressionOutput}%` }}>
+                                <div className="absolute -top-1 -left-1.5 w-4 h-6 bg-white rounded-sm border-2 border-zinc-900"></div>
                             </div>
                          </div>
-                         <div className="text-right">
-                             <div className="text-[9px] text-zinc-500 uppercase font-bold">Final Aggression</div>
-                             <div className="text-2xl font-black text-white">15<span className="text-sm text-zinc-600">/100</span></div>
-                             <div className="text-[9px] text-blue-400 font-bold uppercase mt-1">STATE: RETREATING</div>
+                         <div className="text-right min-w-[120px]">
+                             <div className="text-[9px] text-zinc-500 uppercase font-bold">Aggression Score</div>
+                             <div className="text-2xl font-black text-white">{metrics.aggressionOutput.toFixed(1)}</div>
+                             <div className={`text-[9px] font-bold uppercase mt-1 ${
+                                 metrics.stateDescription === 'BERSERK' || metrics.stateDescription === 'RUTHLESS' ? 'text-red-500 animate-pulse' : 
+                                 metrics.stateDescription === 'CONSERVING' ? 'text-blue-500' : 'text-zinc-400'
+                             }`}>State: {metrics.stateDescription}</div>
                          </div>
                     </div>
                  </div>
               </div>
 
             </div>
+          )}
+
+          {/* FALLBACK FOR OFFLINE */}
+          {type === 'math' && !metrics && (
+             <div className="flex flex-col items-center justify-center h-64 text-zinc-500">
+                <p className="text-sm font-bold uppercase tracking-widest">Pipeline Offline</p>
+                <p className="text-[10px] opacity-50 mt-2">Initialize simulation to view live logic stream.</p>
+             </div>
           )}
 
           {type === 'architecture' && (

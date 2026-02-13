@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import GameScene from './components/GameScene';
@@ -252,12 +253,13 @@ const buyItem = (type: 'hp' | 'str' | 'dmg') => {
               setManualEnemyEnergy={setManualEnemyEnergy}
               isAutoRegen={isAutoRegen}
               setIsAutoRegen={setIsAutoRegen}
+              onOpenDetails={() => setTheoryModal('math')}
             />
         </div>
       )}
 
       {theoryModal && (
-        <FuzzyTheoryModal type={theoryModal as any} onClose={() => setTheoryModal(null)} />
+        <FuzzyTheoryModal type={theoryModal as any} onClose={() => setTheoryModal(null)} metrics={metrics} />
       )}
 
       {/* Transparent Pause Indicator */}

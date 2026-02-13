@@ -1,3 +1,4 @@
+
 import { FuzzyMetrics } from '../types';
 
 export function triangle(x: number, a: number, b: number, c: number): number {
@@ -140,9 +141,16 @@ export class FuzzyAI {
     // Track Recharge rule specifically for override logic
     let rechargeStrength = 0;
 
+    // --- NEW: Active Rules Collection ---
+    const firingRules: { name: string; strength: number; type: string }[] = [];
+
     for (const rule of FUZZY_RULES_DB) {
       const strength = rule.evaluate(context);
       
+      if (strength > 0.01) {
+          firingRules.push({ name: rule.description, strength, type: rule.type });
+      }
+
       // Track specific recharge rule
       if (rule.id === 'RECHARGE') {
         rechargeStrength = strength;
@@ -159,6 +167,9 @@ export class FuzzyAI {
         currentBestRule = rule.description;
       }
     }
+
+    // Sort active rules by strength
+    firingRules.sort((a, b) => b.strength - a.strength);
     
     this.activeRule = currentBestRule;
 
@@ -190,7 +201,6 @@ export class FuzzyAI {
         else this.state = "DEFENSIVE";
         
         // Specific State Overrides based on Active Rule Context
-        // (Optional: Map specific rules to State strings if desired, but aggression mapping is usually sufficient)
         if (this.activeRule.includes("Sniping")) this.state = "SNIPING";
         if (this.activeRule.includes("Interrupt")) this.state = "INTERRUPTING";
         if (this.activeRule.includes("Final Stand")) this.state = "FINAL STAND";
@@ -200,6 +210,7 @@ export class FuzzyAI {
       distance: dist, healthPct: hpPercent, playerHealthPct: playerHpPercent, playerAggro: 0, playerMagic: magicCd,
       hazardProximity: hazardDist, energyPct: energyPct, aggressionOutput: this.aggression, stateDescription: this.state,
       activeRuleDescription: this.activeRule,
+      activeRules: firingRules,
       playerStance: { ...this.playerStance },
       fuzzyDist: { ...this.distance }, fuzzyHealth: { ...this.health }, fuzzyPlayerHealth: { ...this.playerHealth },
       fuzzyAggro: { calm: 0, fight: 0, spamming: 0 }, fuzzyMagic: { ...this.playerMagic },

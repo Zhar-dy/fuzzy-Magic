@@ -17,7 +17,9 @@ import { PlayerState, EnemyState, FuzzyMetrics, Vector3 } from '../types';
 declare global {
   namespace React {
     namespace JSX {
-      interface IntrinsicElements extends THREE.Group {}
+      interface IntrinsicElements {
+        [key: string]: any;
+      }
     }
   }
 }
@@ -401,7 +403,7 @@ const GameScene: React.FC<{
 
   const throttleCounter = useRef(0);
   const mousePosRef = useRef(new THREE.Vector3());
-  const keys = useRef<any>({});
+  const keys = useRef<Record<string, boolean>>({});
   const { camera, raycaster, pointer } = useThree();
   const floorPlane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const playerMesh = useRef<THREE.Group>(null);
@@ -616,7 +618,7 @@ const GameScene: React.FC<{
     // --- PROJECTILE PHYSICS LOOP ---
     if (projectilesGroupRef.current) {
         const now = Date.now();
-        const targets = Object.values(enemyRefs.current);
+        const targets: React.RefObject<THREE.Group>[] = Object.values(enemyRefs.current);
         // We use a separate array to mark IDs for removal to avoid mutating while iterating
         const idsToRemove = new Set<number>();
 
