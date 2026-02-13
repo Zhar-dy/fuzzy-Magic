@@ -43,7 +43,7 @@ export interface FuzzyMetrics {
   activeRuleDescription: string;
   
   // New field for live pipeline
-  activeRules: { name: string; strength: number; type: string }[];
+  activeRules: { name: string; strength: number; type: string; ruleIndex: number }[];
 
   // New metrics
   playerStance: { normal: number; defensive: number; dodging: number; healing: number };

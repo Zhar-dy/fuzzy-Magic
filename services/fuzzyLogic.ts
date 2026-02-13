@@ -142,13 +142,14 @@ export class FuzzyAI {
     let rechargeStrength = 0;
 
     // --- NEW: Active Rules Collection ---
-    const firingRules: { name: string; strength: number; type: string }[] = [];
+    const firingRules: { name: string; strength: number; type: string; ruleIndex: number }[] = [];
 
-    for (const rule of FUZZY_RULES_DB) {
+    for (let i = 0; i < FUZZY_RULES_DB.length; i++) {
+      const rule = FUZZY_RULES_DB[i];
       const strength = rule.evaluate(context);
       
       if (strength > 0.01) {
-          firingRules.push({ name: rule.description, strength, type: rule.type });
+          firingRules.push({ name: rule.description, strength, type: rule.type, ruleIndex: i + 1 });
       }
 
       // Track specific recharge rule
