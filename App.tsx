@@ -22,7 +22,7 @@ function App() {
   // resetSignal forces internal reset in GameScene without remounting
   const [resetSignal, setResetSignal] = useState(0); 
   const [showShop, setShowShop] = useState(false);
-  const [theoryModal, setTheoryModal] = useState<'rules' | 'architecture' | 'math' | null>(null);
+  const [showLogicModal, setShowLogicModal] = useState(false);
   const [isDashboardVisible, setIsDashboardVisible] = useState(true);
   
   // Debug Controls State
@@ -180,10 +180,10 @@ const buyItem = (type: 'hp' | 'str' | 'dmg') => {
             </div>
             
             <button 
-              onClick={() => setTheoryModal('math')}
+              onClick={() => setShowLogicModal(true)}
               className="bg-zinc-900/90 hover:bg-zinc-800 text-zinc-400 hover:text-white font-bold text-[10px] px-6 py-2.5 rounded-xl uppercase tracking-widest shadow-xl border border-zinc-800 transition-all backdrop-blur-xl"
             >
-              Arcane Knowledge
+              Logic Dashboard
             </button>
          </div>
       </div>
@@ -254,13 +254,13 @@ const buyItem = (type: 'hp' | 'str' | 'dmg') => {
               setManualEnemyEnergy={setManualEnemyEnergy}
               isAutoRegen={isAutoRegen}
               setIsAutoRegen={setIsAutoRegen}
-              onOpenDetails={() => setTheoryModal('math')}
+              onOpenDetails={() => setShowLogicModal(true)}
             />
         </div>
       )}
 
-      {theoryModal && (
-        <FuzzyTheoryModal type={theoryModal as any} onClose={() => setTheoryModal(null)} metrics={metrics} />
+      {showLogicModal && (
+        <FuzzyTheoryModal onClose={() => setShowLogicModal(false)} />
       )}
 
       {/* Transparent Pause Indicator */}
