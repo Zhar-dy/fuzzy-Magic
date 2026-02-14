@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import GameScene from './components/GameScene';
 import { UIOverlay } from './components/UIOverlay';
@@ -7,6 +7,7 @@ import FuzzyDashboard from './components/FuzzyDashboard';
 import FuzzyTheoryModal from './components/FuzzyTheoryModal';
 import { PlayerState, EnemyState, FuzzyMetrics, GameLogEntry } from './types';
 import { MerchantAI } from './services/fuzzyLogic';
+import { generateSpeech } from './services/geminiService';
 
 const INITIAL_PLAYER_STATE: PlayerState = {
   position: { x: 0, y: 0, z: 5 },
@@ -15,17 +16,35 @@ const INITIAL_PLAYER_STATE: PlayerState = {
   gold: 0, totalGoldSpent: 0, damageMultiplier: 1.0
 };
 
+const NARRATION_SCRIPT = [
+    {
+        title: "I. The Illusion of Life",
+        text: "In most modern RPGs, you aren't fighting an enemy; you’re fighting a spreadsheet. Static 'If-Then' logic creates predictable patterns—stay at range, wait for the animation, repeat. It’s binary. It’s boring. 'Fuzzy Guardian' breaks this cycle by removing the 'switch' and replacing it with a 'spectrum'. Our enemies don't just react; they perceive the battlefield in shades of grey."
+    },
+    {
+        title: "II. The Fuzzy Brain",
+        text: "Take our 'Aggression Vector'. Instead of a simple 'Attack' or 'Flee' command, we use Mamdani Inference. Our Golems calculate membership in multiple states simultaneously. A Golem might be 40% 'Exhausted' and 60% 'Tactical'. It doesn't just stop moving; it slows down, retreats slightly, and waits for its Energy membership to transition back to 'Full'. This fuzzy bridge between sensors and actions creates emergent behaviors that weren't explicitly programmed."
+    },
+    {
+        title: "III. The Adaptive Edge",
+        text: "For you, the player, this means every encounter is a unique dialogue. The AI adapts to your stance. If you're a defensive turtle, it bullies you. If you're an aggressive caster, it punishes your cooldowns. You aren't just clicking buttons; you're engaging with a system that respects your skill and punishes your patterns. This is the future of adaptive RPG combat—logical, unpredictable, and alive."
+    }
+];
+
 function App() {
   const [gameActive, setGameActive] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameOverState, setGameOverState] = useState<{isOver: boolean, won: boolean}>({ isOver: false, won: false });
-  // resetSignal forces internal reset in GameScene without remounting
   const [resetSignal, setResetSignal] = useState(0); 
   const [showShop, setShowShop] = useState(false);
   const [showLogicModal, setShowLogicModal] = useState(false);
   const [isDashboardVisible, setIsDashboardVisible] = useState(true);
   
-  // Debug Controls State
+  // Narration State
+  const [isNarrating, setIsNarrating] = useState(false);
+  const [currentChapter, setCurrentChapter] = useState(-1);
+  const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+
   const [manualEnemyEnergy, setManualEnemyEnergy] = useState(50);
   const [isAutoRegen, setIsAutoRegen] = useState(true);
 
@@ -88,13 +107,53 @@ function App() {
     }, 50);
   };
 
-const buyItem = (type: 'hp' | 'str' | 'dmg') => {
-    // --- NEW LOGIC: Prevent buying if HP is full ---
+  const stopNarration = useCallback(() => {
+    if (audioSourceRef.current) {
+        audioSourceRef.current.stop();
+        audioSourceRef.current = null;
+    }
+    setIsNarrating(false);
+    setCurrentChapter(-1);
+  }, []);
+
+  const startNarration = async () => {
+    if (isNarrating) {
+        stopNarration();
+        return;
+    }
+
+    setIsNarrating(true);
+    handleLog("AI Narrator initiated. Tuning logic stream...", "info");
+
+    for (let i = 0; i < NARRATION_SCRIPT.length; i++) {
+        setCurrentChapter(i);
+        const buffer = await generateSpeech(NARRATION_SCRIPT[i].text, 'Puck');
+        if (!buffer) break;
+
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        audioSourceRef.current = source;
+
+        const playPromise = new Promise((resolve) => {
+            source.onended = resolve;
+        });
+
+        source.start();
+        await playPromise;
+        if (!isNarrating) break;
+    }
+
+    setIsNarrating(false);
+    setCurrentChapter(-1);
+  };
+
+  const buyItem = (type: 'hp' | 'str' | 'dmg') => {
     if (type === 'hp' && playerState.hp >= playerState.maxHp) {
         handleLog("Vitality is already at maximum capacity.", 'info');
         return;
     }
-    // -----------------------------------------------
 
     const basePrices = { hp: 100, str: 250, dmg: 300 };
     const price = Math.floor(basePrices[type] * (1 - currentDiscount / 100));
@@ -104,7 +163,6 @@ const buyItem = (type: 'hp' | 'str' | 'dmg') => {
         ...p,
         gold: p.gold - price,
         totalGoldSpent: p.totalGoldSpent + price,
-        // Fixed: Use maxHp instead of hardcoded 100
         hp: type === 'hp' ? Math.min(p.maxHp, p.hp + 40) : p.hp,
         damageMultiplier: type === 'str' ? p.damageMultiplier + 0.2 : (type === 'dmg' ? p.damageMultiplier + 0.25 : p.damageMultiplier)
       }));
@@ -118,6 +176,7 @@ const buyItem = (type: 'hp' | 'str' | 'dmg') => {
       handleLog("Insufficient gold for this relic.", 'combat');
     }
   };
+
   return (
     <div className="relative w-full h-screen bg-zinc-950 overflow-hidden select-none font-sans text-zinc-100">
       <div className="absolute inset-0 z-0">
@@ -137,10 +196,37 @@ const buyItem = (type: 'hp' | 'str' | 'dmg') => {
         </Canvas>
       </div>
 
+      {/* Narration Subtitles Overlay */}
+      {isNarrating && currentChapter >= 0 && (
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-[70] w-full max-w-2xl px-8 pointer-events-none">
+            <div className="bg-zinc-950/80 border border-cyan-500/30 backdrop-blur-xl p-6 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.15)] text-center animate-fadeIn">
+                <h3 className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.5em] mb-3">AI Commentary // {NARRATION_SCRIPT[currentChapter].title}</h3>
+                <p className="text-zinc-100 text-lg font-medium leading-relaxed italic">
+                    "{NARRATION_SCRIPT[currentChapter].text}"
+                </p>
+                <div className="mt-4 flex justify-center">
+                    <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map(i => (
+                            <div key={i} className="w-1 h-3 bg-cyan-500 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.1}s` }} />
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
       <div className="absolute inset-0 z-10 pointer-events-none">
          <UIOverlay player={playerState} enemies={enemies} logs={logs} />
          
          <div className="absolute top-6 right-6 pointer-events-auto flex items-center gap-4">
+            <button 
+              onClick={startNarration}
+              className={`font-bold text-[10px] px-6 py-2.5 rounded-xl uppercase tracking-widest shadow-xl border transition-all backdrop-blur-xl flex items-center gap-2 ${isNarrating ? 'bg-cyan-500 text-zinc-950 border-cyan-400 animate-pulse' : 'bg-zinc-900/90 text-zinc-400 hover:text-white border-zinc-800'}`}
+            >
+              {isNarrating ? <div className="w-2 h-2 bg-zinc-950 rounded-full animate-ping" /> : null}
+              {isNarrating ? 'Stop Narrator' : 'Play Presentation'}
+            </button>
+
             {gameStarted && !gameOverState.isOver && (
               <button
                 onClick={() => setGameActive(!gameActive)}
@@ -166,7 +252,6 @@ const buyItem = (type: 'hp' | 'str' | 'dmg') => {
 
             <div className="bg-zinc-900/90 border border-zinc-800 px-6 py-2 rounded-xl flex items-center gap-4 backdrop-blur-xl shadow-xl">
                 <span className="text-amber-400 font-bold text-sm tracking-widest uppercase">GOLD: {playerState.gold}</span>
-                {/* Debug Coin Modifier */}
                 <button 
                   onClick={() => setPlayerState(p => ({ ...p, gold: p.gold + 1000 }))}
                   className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[9px] px-1.5 py-0.5 rounded border border-amber-500/30 transition-colors pointer-events-auto"
@@ -174,9 +259,6 @@ const buyItem = (type: 'hp' | 'str' | 'dmg') => {
                 >
                   +1k
                 </button>
-                {Math.sqrt(playerState.position.x**2 + playerState.position.z**2) < 5.5 && (
-                    <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest animate-pulse border-l border-zinc-800 pl-4 italic">Sanctuary</span>
-                )}
             </div>
             
             <button 
@@ -199,7 +281,6 @@ const buyItem = (type: 'hp' | 'str' | 'dmg') => {
                  <button onClick={() => setShowShop(false)} className="text-zinc-600 hover:text-white text-3xl transition-colors">&times;</button>
               </div>
 
-              {/* Current Stats Panel */}
               <div className="grid grid-cols-2 gap-4 mb-6 bg-zinc-950/50 p-4 rounded-xl border border-zinc-800">
                   <div className={`flex flex-col items-center transition-all duration-300 ${highlightStat === 'hp' ? 'text-emerald-400 scale-105' : 'text-zinc-400'}`}>
                       <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">Current Vitality</span>
@@ -263,7 +344,6 @@ const buyItem = (type: 'hp' | 'str' | 'dmg') => {
         <FuzzyTheoryModal onClose={() => setShowLogicModal(false)} />
       )}
 
-      {/* Transparent Pause Indicator */}
       {!gameActive && gameStarted && !gameOverState.isOver && (
         <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none transition-all duration-300">
           <div className="text-center animate-pulse">
@@ -277,7 +357,6 @@ const buyItem = (type: 'hp' | 'str' | 'dmg') => {
         </div>
       )}
 
-      {/* Start / Game Over Screen */}
       {(!gameStarted || gameOverState.isOver) && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-950/95 backdrop-blur-2xl p-6">
           <div className="text-center p-12 border border-zinc-800 bg-zinc-900/40 rounded-[2.5rem] shadow-2xl max-w-xl w-full">
