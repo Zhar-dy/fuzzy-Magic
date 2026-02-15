@@ -27,7 +27,7 @@ const NARRATION_SCRIPT = [
     },
     {
         title: "III. The Player Benefits",
-        text: "The primary benefit for the player is the emergence of 'Unscripted Dialogue.' In most games, high-level play becomes a chore of memorizing boss patterns. In 'Fuzzy Guardian,' the AI respects your agency. If you adopt a defensive stance, the fuzzy logic identifies your membership in the 'Turtle' state and adapts by increasing its pressure to break your guard. If you are reckless, it senses your energy depletion and waits for the optimal moment to strike. This creates a high-stakes psychological engagement where the player isn't just fighting a machine, but is involved in a dynamic tactical exchange that evolves based on their unique playstyle."
+        text: "The primary benefit for the player is the emergence of 'Unscripted Dialogue.' In most games, high-level play becomes a chore of memorizing boss patterns. In 'Fuzzy RPG,' the AI respects your agency. If you adopt a defensive stance, the fuzzy logic identifies your membership in the 'Turtle' state and adapts by increasing its pressure to break your guard. If you are reckless, it senses your energy depletion and waits for the optimal moment to strike. This creates a high-stakes psychological engagement where the player isn't just fighting a machine, but is involved in a dynamic tactical exchange that evolves based on their unique playstyle."
     },
     {
         title: "IV. Product & Research Tool",
@@ -380,7 +380,7 @@ function App() {
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-950/95 backdrop-blur-2xl p-6">
           <div className="text-center p-20 border border-zinc-800 bg-zinc-900/40 rounded-[4rem] shadow-[0_0_150px_rgba(0,0,0,0.6)] max-w-3xl w-full border-t-zinc-700/50">
             <h1 className="text-8xl font-black mb-8 text-transparent bg-clip-text bg-gradient-to-br from-amber-400 via-cyan-500 to-emerald-600 tracking-tighter italic uppercase drop-shadow-2xl">
-              {gameOverState.isOver ? (gameOverState.won ? "GLORY" : "CRITICAL FAILURE") : "FUZZY GUARDIAN"}
+              {gameOverState.isOver ? (gameOverState.won ? "GLORY" : "CRITICAL FAILURE") : "FUZZY RPG"}
             </h1>
             <p className="text-zinc-500 mb-16 text-sm uppercase tracking-[0.8em] font-black leading-relaxed">
               MAMDANI INFERENCE RPG // KEYNOTE PITCH BUILD v1.5
